@@ -16,7 +16,7 @@ class ApiService {
       from,
       to,
     });
-    const url = new URL(`/lag?${params}`, this.baseUrl);
+    const url = new URL(`lag?${params}`, this.baseUrl);
 
     const response = await fetch(url.toString(), {
       method: 'GET',

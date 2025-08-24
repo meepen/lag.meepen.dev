@@ -18,7 +18,7 @@ describe('DtoToEntityService', () => {
         {
           provide: AppLogger,
           useValue: new Logger(),
-        }
+        },
       ],
     }).compile();
 

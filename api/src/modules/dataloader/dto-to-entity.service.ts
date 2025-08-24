@@ -23,10 +23,7 @@ export class DtoToEntityService {
   }
 
   private dtoToResults(dto: MtrResultDto, batch: MtrBatch): MtrResult[] {
-    this.logger?.debug(dto.report.hubs.length);
     return dto.report.hubs.map((hub, idx) => {
-      this.logger?.debug(`Processing hub ${idx}: ${hub.host}`);
-
       const result = new MtrResult();
       result.batch = batch;
       result.hubIndex = idx;
