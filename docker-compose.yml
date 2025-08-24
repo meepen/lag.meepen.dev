@@ -10,7 +10,7 @@ services:
       context: ./api
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3100:3000"
     depends_on:
       - db
     env_file:
@@ -52,11 +52,15 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      secrets:
+        - vite_env
     ports:
-      - "5173:5173"
-    depends_on:
-      - api
+      - "3101:3000"
 
 networks:
   internal:
     driver: bridge
+
+secrets:
+  vite_env:
+    file: .env

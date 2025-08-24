@@ -1,16 +1,25 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vitest } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DtoToEntityService } from './dto-to-entity.service.js';
+import { AppLogger } from '../../common/logger/app-logger.service.js';
+import { INQUIRER } from '@nestjs/core';
 import { plainToInstance } from 'class-transformer';
 import { MtrResultDto } from './dtos/mtr-result.dto.js';
 import { mockMtrBatchWithResults } from '../../entities/mtr_batch.entity.mock.js';
+import { Logger } from '@nestjs/common';
 
 describe('DtoToEntityService', () => {
   let service: DtoToEntityService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [DtoToEntityService],
+      providers: [
+        DtoToEntityService,
+        {
+          provide: AppLogger,
+          useValue: new Logger(),
+        }
+      ],
     }).compile();
 
     service = module.get<DtoToEntityService>(DtoToEntityService);
@@ -57,5 +66,8 @@ describe('DtoToEntityService', () => {
       testCount: mockEntity.testCount,
       packetSize: mockEntity.packetSize
     });
+    
+    // Check that the batch results array has the correct length
+    expect(resultEntity.results).toHaveLength(mockEntity.results.length);
   });
 });

@@ -2,9 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { MtrResultDto } from './dtos/mtr-result.dto.js';
 import { MtrBatch } from '../../entities/mtr_batch.entity.js';
 import { MtrResult } from '../../entities/mtr_result.entity.js';
+import { AppLogger } from '../../common/logger/app-logger.service.js';
 
 @Injectable()
 export class DtoToEntityService {
+  constructor(private readonly logger: AppLogger) {}
+
   dtoToBatch(dto: MtrResultDto): MtrBatch {
     const batch = new MtrBatch();
     batch.sourceName = dto.report.mtr.src;
@@ -20,7 +23,10 @@ export class DtoToEntityService {
   }
 
   private dtoToResults(dto: MtrResultDto, batch: MtrBatch): MtrResult[] {
+    this.logger?.debug(dto.report.hubs.length);
     return dto.report.hubs.map((hub, idx) => {
+      this.logger?.debug(`Processing hub ${idx}: ${hub.host}`);
+
       const result = new MtrResult();
       result.batch = batch;
       result.hubIndex = idx;

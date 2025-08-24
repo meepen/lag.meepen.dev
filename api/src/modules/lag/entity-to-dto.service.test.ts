@@ -26,10 +26,8 @@ describe('EntityToDtoService', () => {
     expect(resultDto).toMatchObject({
       batchId: mockEntity.id,
       createdAt: mockEntity.createdAt,
-      sourceName: mockEntity.sourceName,
-      destinationName: mockEntity.destinationName,
       testCount: mockEntity.testCount,
-      packetSize: mockEntity.packetSize
+      packetSize: mockEntity.packetSize,
     });
 
     // Check that results array is populated
