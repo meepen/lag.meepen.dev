@@ -6,6 +6,10 @@ import { AppLogger } from './common/logger/app-logger.service.js';
 
 const app = await NestFactory.create(AppModule);
 
+// Trust proxy only from localhost (nginx)
+const expressApp = app.getHttpAdapter().getInstance();
+expressApp.set('trust proxy', 'loopback');
+
 const configService = app.get(ConfigService);
 const logger = await app.resolve(AppLogger);
 
