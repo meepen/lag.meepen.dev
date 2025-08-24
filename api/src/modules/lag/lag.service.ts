@@ -2,15 +2,18 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { MtrBatch } from '../../entities/mtr_batch.entity.js';
+import { EntityToDtoService } from './entity-to-dto.service.js';
+import { LagResultDto } from './dtos/lag-result.dto.js';
 
 @Injectable()
 export class LagService {
   constructor(
     @InjectRepository(MtrBatch)
     private readonly mtrBatchRepository: Repository<MtrBatch>,
+    private readonly entityToDtoService: EntityToDtoService,
   ) {}
 
-  async calculateLag(from: Date, to: Date): Promise<string> {
+  async calculateLag(from: Date, to: Date): Promise<LagResultDto[]> {
     // Query batches between the specified timestamps
     const batches = await this.mtrBatchRepository.find({
       where: {
@@ -19,7 +22,7 @@ export class LagService {
       relations: ['results'],
     });
 
-    // Stubbed lag calculation logic with actual data query
-    return `Found ${batches.length} batches between ${from.toISOString()} and ${to.toISOString()} - implement lag calculation logic here`;
+    // Convert entities to DTOs using the entity-to-dto service
+    return batches.map(batch => this.entityToDtoService.batchToDto(batch));
   }
 }

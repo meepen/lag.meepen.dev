@@ -26,7 +26,7 @@ export class DtoToEntityService {
       result.hubIndex = idx;
       result.host = hub.host;
       result.sent = hub.Snt;
-      result.lost = hub['Loss%'];
+      result.lost = Math.round(hub['Loss%'] * result.sent);
       result.averageMs = hub.Avg;
       result.bestMs = hub.Best;
       result.worstMs = hub.Wrst;

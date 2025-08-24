@@ -11,8 +11,6 @@ export class EntityToDtoService {
     return plainToInstance(LagResultDto, {
       batchId: batch.id,
       createdAt: batch.createdAt,
-      sourceName: batch.sourceName,
-      destinationName: batch.destinationName,
       testCount: batch.testCount,
       packetSize: batch.packetSize,
       results: batch.results ? this.resultsToDto(batch.results) : [],
