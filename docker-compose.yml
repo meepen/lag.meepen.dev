@@ -12,7 +12,8 @@ services:
     ports:
       - "3100:3000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     env_file:
       - .env
     environment:
@@ -25,6 +26,7 @@ services:
       start_period: 40s
     networks:
       - internal
+    
 
   db:
     image: postgres:17
@@ -33,6 +35,12 @@ services:
       <<: *postgres-creds
     volumes:
       - ./postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - internal
 
@@ -57,6 +65,8 @@ services:
         - vite_env
     ports:
       - "3101:3000"
+    networks:
+      - internal
 
 networks:
   internal:
