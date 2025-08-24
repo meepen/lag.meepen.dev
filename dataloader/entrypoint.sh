@@ -22,10 +22,9 @@ while true; do
   fi
   
   echo "MTR completed successfully. Sending data to API..."
-  
-  # Debug: show first 100 characters of output
-  echo "First 100 chars of MTR output: $(echo "$mtr_output" | head -c 100)..."
-  
+
+  echo "MTR Output: $mtr_output"
+
   # Send the mtr output to the API endpoint
   curl_response=$(curl -s -w "%{http_code}" \
     -X PUT \
