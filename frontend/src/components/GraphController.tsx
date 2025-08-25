@@ -17,14 +17,6 @@ export const GraphController: React.FC = () => {
   const [highlightTrigger, setHighlightTrigger] = useState(0);
   const [batchHighlightTrigger, setBatchHighlightTrigger] = useState(0);
 
-  // Debug logging to track re-renders
-  const renderCount = useRef(0);
-  renderCount.current += 1;
-  console.log('GraphController render #', renderCount.current, {
-    searchParams: Object.fromEntries(searchParams.entries()),
-    timestamp: Date.now()
-  });
-
   // Parse current URL parameters - single source of truth
   const urlParams = useMemo(() => parseTimeParams(searchParams), [searchParams]);
   

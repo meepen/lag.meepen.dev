@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { Box, Typography, Alert, CircularProgress, Card, CardContent } from '@mui/material';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { LagResultDto } from '../types/lag-result.dto';
@@ -35,10 +35,6 @@ interface TooltipProps {
 }
 
 export const Graph: React.FC<GraphProps> = React.memo(({ data, loading, error, fromDate, toDate, onDataPointClick }) => {
-  const renderCount = useRef(0);
-  renderCount.current += 1;
-  console.log('Graph render #', renderCount.current, { dataLength: data.length, loading, error: !!error });
-  
   // Determine grouping interval based on time range
   const getGroupingInterval = (from: Date, to: Date): { minutes: number; label: string } => {
     const durationMs = to.getTime() - from.getTime();

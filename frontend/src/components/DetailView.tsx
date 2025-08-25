@@ -23,21 +23,9 @@ export const DetailView: React.FC<DetailViewProps> = React.memo(({ selectedData,
   const [isHighlighted, setIsHighlighted] = useState(false);
   const detailViewRef = useRef<HTMLDivElement>(null);
 
-  // Debug logging for selectedData changes
-  useEffect(() => {
-    console.log('DetailView: selectedData changed', {
-      timestamp: selectedData?.timestamp,
-      batchCount: selectedData?.batches?.length,
-      batchIds: selectedData?.batches?.map(b => b.batchId),
-      highlightTrigger
-    });
-  }, [selectedData, highlightTrigger]);
-
   // Handle highlighting when a new data point is clicked
   useEffect(() => {
     if (highlightTrigger && selectedData) {
-      console.log('DetailView: Triggering highlight animation', { highlightTrigger, timestamp: selectedData.timestamp });
-      
       // Scroll to the detail view
       detailViewRef.current?.scrollIntoView({ 
         behavior: 'smooth', 
