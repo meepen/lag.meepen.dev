@@ -17,6 +17,11 @@ export const GraphController: React.FC = () => {
   const [highlightTrigger, setHighlightTrigger] = useState(0);
   const [batchHighlightTrigger, setBatchHighlightTrigger] = useState(0);
 
+  // Refs for stable callbacks and storing selected batches
+  const searchParamsRef = useRef(searchParams);
+  const setSearchParamsRef = useRef(setSearchParams);
+  const selectedBatchesRef = useRef<LagResultDto[]>([]);
+
   // Parse current URL parameters - single source of truth
   const urlParams = useMemo(() => parseTimeParams(searchParams), [searchParams]);
   
@@ -41,10 +46,19 @@ export const GraphController: React.FC = () => {
   const selectedTimestamp = urlParams.selectedTimestamp ? parseInt(urlParams.selectedTimestamp, 10) : null;
   const selectedBatchId = urlParams.selectedBatch;
   
-  // Memoize selectedData computation to prevent unnecessary recalculations
+  // Memoize selectedData computation to use the exact batches from graph click
   const selectedData = useMemo(() => {
     if (!selectedTimestamp || lagData.length === 0) return null;
     
+    // If we have batches from the graph click, use those exactly
+    if (selectedBatchesRef.current.length > 0) {
+      return { 
+        timestamp: selectedTimestamp, 
+        batches: selectedBatchesRef.current 
+      };
+    }
+    
+    // Fallback to the old method if no stored batches (shouldn't happen with graph clicks)
     const batchesAtTimestamp = lagData.filter(batch => {
       const batchTime = new Date(batch.createdAt).getTime();
       return Math.abs(batchTime - selectedTimestamp) <= 30000;
@@ -199,6 +213,7 @@ export const GraphController: React.FC = () => {
   }, [updateUrl]);
 
   const handleCloseDetailView = useCallback(() => {
+    selectedBatchesRef.current = []; // Clear stored batches when closing
     updateUrl({ selectedTimestamp: null, selectedBatch: null });
   }, [updateUrl]);
 
@@ -208,8 +223,6 @@ export const GraphController: React.FC = () => {
 
   // Create stable graph props that only change when the actual data changes
   // Use a stable callback with ref to avoid recreating on every URL change
-  const searchParamsRef = useRef(searchParams);
-  const setSearchParamsRef = useRef(setSearchParams);
   
   // Update refs when values change
   useEffect(() => {
@@ -217,7 +230,15 @@ export const GraphController: React.FC = () => {
     setSearchParamsRef.current = setSearchParams;
   });
 
-  const stableDataPointClick = useCallback((timestamp: number) => {
+  // Clear stored batches when lag data changes (new data fetch)
+  useEffect(() => {
+    selectedBatchesRef.current = [];
+  }, [lagData]);
+
+  const stableDataPointClick = useCallback((timestamp: number, batches: LagResultDto[]) => {
+    // Store the batches that were actually grouped together in the graph
+    selectedBatchesRef.current = batches;
+    
     // Create URL update using refs to avoid dependency on changing searchParams
     const currentParams = parseTimeParams(searchParamsRef.current);
     const newParams = {

@@ -20,6 +20,7 @@ interface ChartDataPoint {
   minLatency: number;
   maxLatency: number;
   batchCount: number;
+  batches: LagResultDto[]; // Store the actual batches that make up this data point
 }
 
 interface TooltipPayload {
@@ -61,6 +62,7 @@ export const Graph: React.FC<GraphProps> = React.memo(({ data, loading, error, f
       maxLatency: number;
       batchCount: number;
       timestamp: number;
+      batches: LagResultDto[]; // Store the batches in this group
     }>();
 
     batches.forEach(batch => {
@@ -84,7 +86,8 @@ export const Graph: React.FC<GraphProps> = React.memo(({ data, loading, error, f
             minLatency: batchMinLatency,
             maxLatency: batchMaxLatency,
             batchCount: 0,
-            timestamp: date.getTime()
+            timestamp: date.getTime(),
+            batches: []
           });
         }
         
@@ -93,6 +96,7 @@ export const Graph: React.FC<GraphProps> = React.memo(({ data, loading, error, f
         group.minLatency = Math.min(group.minLatency, batchMinLatency);
         group.maxLatency = Math.max(group.maxLatency, batchMaxLatency);
         group.batchCount++;
+        group.batches.push(batch); // Store the batch in this group
       }
     });
 
@@ -104,7 +108,8 @@ export const Graph: React.FC<GraphProps> = React.memo(({ data, loading, error, f
         averageLatency: Number((group.latencies.reduce((sum, lat) => sum + lat, 0) / group.latencies.length).toFixed(2)),
         minLatency: Number(group.minLatency.toFixed(2)),
         maxLatency: Number(group.maxLatency.toFixed(2)),
-        batchCount: group.batchCount
+        batchCount: group.batchCount,
+        batches: group.batches // Include the batches in the chart data point
       }))
       .sort((a, b) => a.timestamp - b.timestamp);
   };
@@ -151,16 +156,9 @@ export const Graph: React.FC<GraphProps> = React.memo(({ data, loading, error, f
     }
     
     if (clickedPoint) {
-      const timestamp = clickedPoint.timestamp;
-      
-      // Find all batches that fall within this time interval
-      const intervalMs = groupingInterval.minutes * 60 * 1000;
-      const batchesInInterval = data.filter((batch: LagResultDto) => {
-        const batchTime = new Date(batch.createdAt).getTime();
-        return batchTime >= timestamp && batchTime < timestamp + intervalMs;
-      });
-
-      onDataPointClick?.(timestamp, batchesInInterval);
+      // Use the exact batches that were grouped together for this data point
+      // This ensures the DetailView shows the same data the tooltip is calculated from
+      onDataPointClick?.(clickedPoint.timestamp, clickedPoint.batches);
     }
   };
   
