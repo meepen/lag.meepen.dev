@@ -5,11 +5,12 @@ import {
   Container,
 } from '@mui/material'
 import { NetworkCheck } from '@mui/icons-material'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { GraphController } from './components/GraphController'
 
 function App() {
   return (
-    <>
+    <BrowserRouter>
       <AppBar position="static" color="primary">
         <Toolbar>
           <NetworkCheck sx={{ mr: 2 }} />
@@ -20,9 +21,11 @@ function App() {
       </AppBar>
       
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <GraphController />
+        <Routes>
+          <Route path="/" element={<GraphController />} />
+        </Routes>
       </Container>
-    </>
+    </BrowserRouter>
   )
 }
 

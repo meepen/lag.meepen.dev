@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   Box, 
   Typography, 
@@ -11,15 +11,43 @@ import {
   TableHead, 
   TableRow, 
   Paper, 
-  Chip
+  Chip,
+  IconButton
 } from '@mui/material';
+import { Close } from '@mui/icons-material';
 import { LagResultDto } from '../types/lag-result.dto';
 
 interface BatchBreakdownProps {
   batch: LagResultDto | null;
+  highlightTrigger?: number; // Add this prop to trigger highlighting
+  onClose?: () => void; // Add callback for closing the batch breakdown
 }
 
-export const BatchBreakdown: React.FC<BatchBreakdownProps> = ({ batch }) => {
+export const BatchBreakdown: React.FC<BatchBreakdownProps> = React.memo(({ batch, highlightTrigger, onClose }) => {
+  const [isHighlighted, setIsHighlighted] = useState(false);
+  const batchBreakdownRef = useRef<HTMLDivElement>(null);
+
+  // Handle highlighting when a batch is selected via URL
+  useEffect(() => {
+    if (highlightTrigger && batch) {
+      // Scroll to the batch breakdown
+      batchBreakdownRef.current?.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+      
+      // Trigger highlight animation
+      setIsHighlighted(true);
+      
+      // Remove highlight after animation
+      const timer = setTimeout(() => {
+        setIsHighlighted(false);
+      }, 2000); // 2 seconds highlight duration
+      
+      return () => clearTimeout(timer);
+    }
+  }, [highlightTrigger, batch]);
+
   if (!batch) {
     return null;
   }
@@ -48,12 +76,29 @@ export const BatchBreakdown: React.FC<BatchBreakdownProps> = ({ batch }) => {
   };
 
   return (
-    <Box sx={{ mt: 3 }}>
+    <Box 
+      ref={batchBreakdownRef}
+      sx={{ 
+        transition: 'all 0.3s ease-in-out',
+        ...(isHighlighted && {
+          boxShadow: '0 0 20px rgba(25, 118, 210, 0.5)',
+          borderRadius: 1,
+          backgroundColor: 'rgba(25, 118, 210, 0.05)',
+        })
+      }}
+    >
       <Card>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Batch Breakdown: {batch.batchId}
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
+              Batch Breakdown: {batch.batchId}
+            </Typography>
+            {onClose && (
+              <IconButton onClick={onClose} size="small" sx={{ color: 'text.secondary' }}>
+                <Close />
+              </IconButton>
+            )}
+          </Box>
           
           {/* Batch Overview */}
           <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
@@ -227,4 +272,4 @@ export const BatchBreakdown: React.FC<BatchBreakdownProps> = ({ batch }) => {
       </Card>
     </Box>
   );
-};
+});

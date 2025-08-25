@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Typography, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TableSortLabel, IconButton } from '@mui/material';
-import { ExpandMore, ExpandLess } from '@mui/icons-material';
+import { ExpandMore, ExpandLess, Close } from '@mui/icons-material';
 import { LagResultDto } from '../types/lag-result.dto';
 
 interface DetailViewProps {
@@ -10,21 +10,34 @@ interface DetailViewProps {
   } | null;
   highlightTrigger?: number; // Add this prop to trigger highlighting
   onBatchClick?: (batchId: string) => void; // Add callback for batch row clicks
+  onClose?: () => void; // Add callback for closing the detail view
 }
 
 type SortColumn = 'time' | 'average' | 'min' | 'max' | 'stdDev';
 type SortDirection = 'asc' | 'desc';
 
-export const DetailView: React.FC<DetailViewProps> = ({ selectedData, highlightTrigger, onBatchClick }) => {
+export const DetailView: React.FC<DetailViewProps> = React.memo(({ selectedData, highlightTrigger, onBatchClick, onClose }) => {
   const [sortColumn, setSortColumn] = useState<SortColumn>('average');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [batchDetailsExpanded, setBatchDetailsExpanded] = useState(false);
   const [isHighlighted, setIsHighlighted] = useState(false);
   const detailViewRef = useRef<HTMLDivElement>(null);
 
+  // Debug logging for selectedData changes
+  useEffect(() => {
+    console.log('DetailView: selectedData changed', {
+      timestamp: selectedData?.timestamp,
+      batchCount: selectedData?.batches?.length,
+      batchIds: selectedData?.batches?.map(b => b.batchId),
+      highlightTrigger
+    });
+  }, [selectedData, highlightTrigger]);
+
   // Handle highlighting when a new data point is clicked
   useEffect(() => {
     if (highlightTrigger && selectedData) {
+      console.log('DetailView: Triggering highlight animation', { highlightTrigger, timestamp: selectedData.timestamp });
+      
       // Scroll to the detail view
       detailViewRef.current?.scrollIntoView({ 
         behavior: 'smooth', 
@@ -123,7 +136,6 @@ export const DetailView: React.FC<DetailViewProps> = ({ selectedData, highlightT
     <Box 
       ref={detailViewRef}
       sx={{
-        mt: 3,
         transition: 'box-shadow 0.3s ease-in-out, background-color 0.3s ease-in-out',
         ...(isHighlighted && {
           boxShadow: '0 0 20px rgba(25, 118, 210, 0.5)',
@@ -132,9 +144,16 @@ export const DetailView: React.FC<DetailViewProps> = ({ selectedData, highlightT
         })
       }}
     >
-      <Typography variant="h6" gutterBottom>
-        Detailed View - {selectedTime.toLocaleString()}
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6">
+          Detailed View - {selectedTime.toLocaleString()}
+        </Typography>
+        {onClose && (
+          <IconButton onClick={onClose} size="small" sx={{ color: 'text.secondary' }}>
+            <Close />
+          </IconButton>
+        )}
+      </Box>
 
       {/* Summary Cards */}
       <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
@@ -337,4 +356,4 @@ export const DetailView: React.FC<DetailViewProps> = ({ selectedData, highlightT
       </Card>
     </Box>
   );
-};
+});

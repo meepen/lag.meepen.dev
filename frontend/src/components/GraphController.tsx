@@ -1,31 +1,102 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Box, Paper } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import { DateController } from './DateController';
 import { Graph } from './Graph';
 import { DetailView } from './DetailView';
 import { BatchBreakdown } from './BatchBreakdown';
 import { apiService } from '../services/api';
 import { LagResultDto } from '../types/lag-result.dto';
+import { parseTimeParams, createTimeUrl, getDateRangeFromParams, type TimePreset } from '../utils/urlParams';
 
 export const GraphController: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [lagData, setLagData] = useState<LagResultDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedData, setSelectedData] = useState<{
-    timestamp: number;
-    batches: LagResultDto[];
-  } | null>(null);
-  const [highlightTrigger, setHighlightTrigger] = useState<number>(0);
-  const [selectedBatch, setSelectedBatch] = useState<LagResultDto | null>(null);
+  const [highlightTrigger, setHighlightTrigger] = useState(0);
+  const [batchHighlightTrigger, setBatchHighlightTrigger] = useState(0);
 
-  // Default to 5 minutes ago to now
-  const now = new Date();
-  const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+  // Debug logging to track re-renders
+  const renderCount = useRef(0);
+  renderCount.current += 1;
+  console.log('GraphController render #', renderCount.current, {
+    searchParams: Object.fromEntries(searchParams.entries()),
+    timestamp: Date.now()
+  });
+
+  // Parse current URL parameters - single source of truth
+  const urlParams = useMemo(() => parseTimeParams(searchParams), [searchParams]);
   
-  const [fromDate, setFromDate] = useState(fiveMinutesAgo);
-  const [toDate, setToDate] = useState(now);
+  // Store stable date range - only update when explicitly changed
+  const [stableDateRange, setStableDateRange] = useState(() => {
+    return getDateRangeFromParams(urlParams);
+  });
+  
+  // Update stable dates only when URL parameters change in a way that should trigger data fetch
+  const lastUrlKey = useRef('');
+  useEffect(() => {
+    const currentUrlKey = `${urlParams.from}-${urlParams.to}-${urlParams.preset}`;
+    if (currentUrlKey !== lastUrlKey.current) {
+      lastUrlKey.current = currentUrlKey;
+      setStableDateRange(getDateRangeFromParams(urlParams));
+    }
+  }, [urlParams]);
+  
+  const fromDate = stableDateRange.from;
+  const toDate = stableDateRange.to;
+  
+  const selectedTimestamp = urlParams.selectedTimestamp ? parseInt(urlParams.selectedTimestamp, 10) : null;
+  const selectedBatchId = urlParams.selectedBatch;
+  
+  // Memoize selectedData computation to prevent unnecessary recalculations
+  const selectedData = useMemo(() => {
+    if (!selectedTimestamp || lagData.length === 0) return null;
+    
+    const batchesAtTimestamp = lagData.filter(batch => {
+      const batchTime = new Date(batch.createdAt).getTime();
+      return Math.abs(batchTime - selectedTimestamp) <= 30000;
+    });
+    
+    return batchesAtTimestamp.length > 0 ? { 
+      timestamp: new Date(batchesAtTimestamp[0].createdAt).getTime(), 
+      batches: batchesAtTimestamp 
+    } : null;
+  }, [selectedTimestamp, lagData]);
+  
+  // Memoize selectedBatch computation
+  const selectedBatch = useMemo(() => {
+    if (!selectedBatchId || lagData.length === 0) return null;
+    return lagData.find(b => b.batchId === selectedBatchId) || null;
+  }, [selectedBatchId, lagData]);
 
-  const fetchData = async (from: Date, to: Date) => {
+  // Simple URL update function
+  const updateUrl = useCallback((params: Partial<{
+    from: Date;
+    to: Date;
+    preset: TimePreset | null;
+    selectedTimestamp: number | null;
+    selectedBatch: string | null;
+  }>) => {
+    const currentParams = parseTimeParams(searchParams);
+    const newParams = {
+      from: params.from ? formatDateForUrl(params.from) : currentParams.from,
+      to: params.to ? formatDateForUrl(params.to) : currentParams.to,
+      preset: params.preset !== undefined ? (params.preset || undefined) : currentParams.preset,
+      selectedTimestamp: params.selectedTimestamp !== undefined ? 
+        (params.selectedTimestamp ? params.selectedTimestamp.toString() : undefined) : 
+        currentParams.selectedTimestamp,
+      selectedBatch: params.selectedBatch !== undefined ? 
+        (params.selectedBatch || undefined) : 
+        currentParams.selectedBatch,
+    };
+    
+    const urlString = createTimeUrl(newParams);
+    setSearchParams(urlString);
+  }, [searchParams, setSearchParams]);
+
+  // Data fetching
+  const fetchData = useCallback(async (from: Date, to: Date) => {
     setLoading(true);
     setError(null);
     
@@ -41,62 +112,151 @@ export const GraphController: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Fetch data when dates change
+  // Event handlers
+
+  // Fetch data when date range changes
+  const lastFetchedDates = useRef({ from: '', to: '' });
+  
   useEffect(() => {
-    fetchData(fromDate, toDate);
-  }, [fromDate, toDate]);
-
-  const handleDateChange = (from: Date, to: Date) => {
-    setFromDate(from);
-    setToDate(to);
-  };
-
-  const handleDataPointClick = (timestamp: number, batches: LagResultDto[]) => {
-    setSelectedData({ timestamp, batches });
-    setHighlightTrigger(prev => prev + 1); // Increment to trigger highlight
-  };
-
-  const handleBatchClick = (batchId: string) => {
-    // Find the batch in lagData and set it as selected
-    const batch = lagData.find(b => b.batchId === batchId);
-    if (batch) {
-      setSelectedBatch(batch);
+    const fromStr = fromDate.toISOString();
+    const toStr = toDate.toISOString();
+    
+    // Only fetch if dates actually changed
+    if (lastFetchedDates.current.from !== fromStr || lastFetchedDates.current.to !== toStr) {
+      lastFetchedDates.current = { from: fromStr, to: toStr };
+      fetchData(fromDate, toDate);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromDate, toDate]); // fetchData is stable with empty deps
+
+  // Event handlers - these only update URL, components react to URL changes
+  const handleDateChange = useCallback((from: Date, to: Date) => {
+    updateUrl({ from, to, preset: null });
+  }, [updateUrl]);
+
+  const handlePresetChange = useCallback((preset: TimePreset) => {
+    updateUrl({ preset });
+    // Force update of stable dates for new preset
+    setStableDateRange(getDateRangeFromParams({ ...urlParams, preset }));
+  }, [updateUrl, urlParams]);
+
+  const handleRefresh = useCallback(() => {
+    // If we have a preset, recalculate the date range to get fresh "now" time
+    if (urlParams.preset) {
+      const freshDateRange = getDateRangeFromParams(urlParams);
+      setStableDateRange(freshDateRange);
+      fetchData(freshDateRange.from, freshDateRange.to);
+    } else {
+      fetchData(fromDate, toDate);
+    }
+  }, [urlParams, fetchData, fromDate, toDate]);
+
+  const handlePresetRefresh = useCallback((preset: TimePreset) => {
+    // When refreshing a preset, recalculate dates to current time
+    const freshParams = { ...urlParams, preset };
+    const freshDateRange = getDateRangeFromParams(freshParams);
+    setStableDateRange(freshDateRange);
+    fetchData(freshDateRange.from, freshDateRange.to);
+  }, [urlParams, fetchData]);
+
+  const handleBatchClick = useCallback((batchId: string) => {
+    updateUrl({ selectedBatch: batchId });
+    setBatchHighlightTrigger(prev => prev + 1);
+  }, [updateUrl]);
+
+  const handleCloseDetailView = useCallback(() => {
+    updateUrl({ selectedTimestamp: null, selectedBatch: null });
+  }, [updateUrl]);
+
+  const handleCloseBatchBreakdown = useCallback(() => {
+    updateUrl({ selectedBatch: null });
+  }, [updateUrl]);
+
+  // Create stable graph props that only change when the actual data changes
+  // Use a stable callback with ref to avoid recreating on every URL change
+  const searchParamsRef = useRef(searchParams);
+  const setSearchParamsRef = useRef(setSearchParams);
+  
+  // Update refs when values change
+  useEffect(() => {
+    searchParamsRef.current = searchParams;
+    setSearchParamsRef.current = setSearchParams;
+  });
+
+  const stableDataPointClick = useCallback((timestamp: number) => {
+    // Create URL update using refs to avoid dependency on changing searchParams
+    const currentParams = parseTimeParams(searchParamsRef.current);
+    const newParams = {
+      from: currentParams.from,
+      to: currentParams.to,
+      preset: currentParams.preset,
+      selectedTimestamp: timestamp.toString(),
+      selectedBatch: undefined,
+    };
+    
+    const urlString = createTimeUrl(newParams);
+    setSearchParamsRef.current(urlString);
+    setHighlightTrigger(prev => prev + 1);
+  }, []); // No dependencies - truly stable
+
+  const graphProps = useMemo(() => ({
+    data: lagData,
+    loading,
+    error,
+    fromDate,
+    toDate,
+    onDataPointClick: stableDataPointClick
+  }), [lagData, loading, error, fromDate, toDate, stableDataPointClick]);
 
   return (
     <Paper sx={{ p: 3 }}>
-      <Box sx={{ mb: 3 }}>
-        <DateController
-          fromDate={fromDate}
-          toDate={toDate}
-          onDateChange={handleDateChange}
-          loading={loading}
-        />
+      <DateController
+        fromDate={fromDate}
+        toDate={toDate}
+        initialPreset={urlParams.preset || null}
+        onDateChange={handleDateChange}
+        onPresetChange={handlePresetChange}
+        onPresetRefresh={handlePresetRefresh}
+        onRefresh={handleRefresh}
+        loading={loading}
+      />
+
+      {error && (
+        <Box sx={{ color: 'error.main', mt: 2 }}>
+          Error: {error}
+        </Box>
+      )}
+
+      <Box sx={{ mt: 3, minHeight: 400, mb: 3 }}>
+        <Graph {...graphProps} />
       </Box>
       
-      <Box sx={{ mt: 3 }}>
-        <Graph
-          data={lagData}
-          loading={loading}
-          error={error}
-          fromDate={fromDate}
-          toDate={toDate}
-          onDataPointClick={handleDataPointClick}
-        />
-      </Box>
+      {selectedData && (
+        <Box sx={{ mt: 3 }}>
+          <DetailView 
+            selectedData={selectedData} 
+            highlightTrigger={highlightTrigger} 
+            onBatchClick={handleBatchClick}
+            onClose={handleCloseDetailView}
+          />
+        </Box>
+      )}
       
-      <DetailView 
-        selectedData={selectedData} 
-        highlightTrigger={highlightTrigger} 
-        onBatchClick={handleBatchClick}
-      />
-      
-      <BatchBreakdown 
-        batch={selectedBatch}
-      />
+      {selectedBatch && (
+        <Box sx={{ mt: 3 }}>
+          <BatchBreakdown 
+            batch={selectedBatch}
+            highlightTrigger={batchHighlightTrigger}
+            onClose={handleCloseBatchBreakdown}
+          />
+        </Box>
+      )}
     </Paper>
   );
 };
+
+function formatDateForUrl(date: Date): string {
+  return date.toISOString();
+}
