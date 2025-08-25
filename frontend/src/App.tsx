@@ -7,6 +7,7 @@ import {
 import { NetworkCheck } from '@mui/icons-material'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { GraphController } from './components/GraphController'
+import { DatabaseSizeCard } from './components/DatabaseSizeCard'
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             {import.meta.env.VITE_APP_NAME || 'Network Lag Monitor'}
           </Typography>
+          <DatabaseSizeCard />
         </Toolbar>
       </AppBar>
       

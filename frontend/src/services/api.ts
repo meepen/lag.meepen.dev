@@ -1,4 +1,5 @@
 import { LagResultDto } from '../types/lag-result.dto';
+import { DatabaseSizeDto } from '../types/database-size.dto';
 
 class ApiService {
   private baseUrl: URL;
@@ -33,6 +34,20 @@ class ApiService {
       ...batch,
       createdAt: new Date(batch.createdAt),
     }));
+  }
+
+  async getDatabaseSize(): Promise<DatabaseSizeDto> {
+    const url = new URL('lag/size', this.baseUrl);
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch database size: ${response.statusText}`);
+    }
+
+    return await response.json();
   }
 }
 
