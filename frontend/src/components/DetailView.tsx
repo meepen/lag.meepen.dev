@@ -120,6 +120,11 @@ export const DetailView: React.FC<DetailViewProps> = React.memo(({ selectedData,
   const minLatency = finalHops.length > 0 ? Math.min(...finalHops.map(hop => hop.bestMs)) : 0;
   const maxLatency = finalHops.length > 0 ? Math.max(...finalHops.map(hop => hop.worstMs)) : 0;
 
+  // Calculate packet loss percentage from final hops
+  const totalSent = finalHops.reduce((sum, hop) => sum + hop.sent, 0);
+  const totalLost = finalHops.reduce((sum, hop) => sum + hop.lost, 0);
+  const lossPercentage = totalSent > 0 ? (totalLost / totalSent) * 100 : 0;
+
   return (
     <Box 
       ref={detailViewRef}
@@ -196,6 +201,17 @@ export const DetailView: React.FC<DetailViewProps> = React.memo(({ selectedData,
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Max Latency
+            </Typography>
+          </CardContent>
+        </Card>
+        
+        <Card sx={{ minWidth: 120 }}>
+          <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+            <Typography variant="h4" color={lossPercentage > 0 ? "error.main" : "success.main"}>
+              {lossPercentage.toFixed(2)}%
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Packet Loss
             </Typography>
           </CardContent>
         </Card>
