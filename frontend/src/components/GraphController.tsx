@@ -123,6 +123,46 @@ export const GraphController: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromDate, toDate]); // fetchData is stable with empty deps
 
+  // Validate selected parameters against loaded data and clear if invalid
+  useEffect(() => {
+    if (lagData.length === 0) return; // Wait for data to load
+    
+    let shouldUpdateUrl = false;
+    const urlUpdates: Partial<{
+      selectedTimestamp: number | null;
+      selectedBatch: string | null;
+    }> = {};
+
+    // Check if selected timestamp is valid (has data within 30 seconds)
+    if (selectedTimestamp) {
+      const hasValidTimestamp = lagData.some(batch => {
+        const batchTime = new Date(batch.createdAt).getTime();
+        return Math.abs(batchTime - selectedTimestamp) <= 30000;
+      });
+      
+      if (!hasValidTimestamp) {
+        urlUpdates.selectedTimestamp = null;
+        urlUpdates.selectedBatch = null; // Also clear batch if timestamp is invalid
+        shouldUpdateUrl = true;
+      }
+    }
+
+    // Check if selected batch is valid
+    if (selectedBatchId && !urlUpdates.selectedBatch) {
+      const hasValidBatch = lagData.some(batch => batch.batchId === selectedBatchId);
+      
+      if (!hasValidBatch) {
+        urlUpdates.selectedBatch = null;
+        shouldUpdateUrl = true;
+      }
+    }
+
+    // Update URL if any parameters are invalid
+    if (shouldUpdateUrl) {
+      updateUrl(urlUpdates);
+    }
+  }, [lagData, selectedTimestamp, selectedBatchId, updateUrl]);
+
   // Event handlers - these only update URL, components react to URL changes
   const handleDateChange = useCallback((from: Date, to: Date) => {
     updateUrl({ from, to, preset: null });
