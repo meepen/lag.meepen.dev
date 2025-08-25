@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, Paper } from '@mui/material';
 import { DateController } from './DateController';
 import { Graph } from './Graph';
 import { DetailView } from './DetailView';
@@ -68,10 +68,6 @@ export const GraphController: React.FC = () => {
 
   return (
     <Paper sx={{ p: 3 }}>
-      <Typography variant="h5" gutterBottom>
-        Network Lag Analysis
-      </Typography>
-      
       <Box sx={{ mb: 3 }}>
         <DateController
           fromDate={fromDate}

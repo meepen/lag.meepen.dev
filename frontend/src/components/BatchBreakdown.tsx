@@ -113,7 +113,6 @@ export const BatchBreakdown: React.FC<BatchBreakdownProps> = ({ batch }) => {
               <TableHead>
                 <TableRow>
                   <TableCell>Hop</TableCell>
-                  <TableCell>Host Hash</TableCell>
                   <TableCell>Sent</TableCell>
                   <TableCell>Lost</TableCell>
                   <TableCell>Average (ms)</TableCell>
@@ -132,11 +131,6 @@ export const BatchBreakdown: React.FC<BatchBreakdownProps> = ({ batch }) => {
                       <TableCell>
                         <Typography variant="body2" fontWeight="bold">
                           {index + 1}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontFamily="monospace">
-                          {hop.hostHash.substring(0, 8)}...
                         </Typography>
                       </TableCell>
                       <TableCell>

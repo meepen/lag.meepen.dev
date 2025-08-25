@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { EntityToDtoService } from './entity-to-dto.service.js';
-import { createHash } from 'crypto';
 import { mockMtrBatchWithResults } from '../../entities/mtr_batch.entity.mock.js';
 
 describe('EntityToDtoService', () => {
@@ -33,14 +32,12 @@ describe('EntityToDtoService', () => {
     // Check that results array is populated
     expect(resultDto.results).toHaveLength(mockEntity.results.length);
 
-    // Check that each result has the correct structure and hashed host
+    // Check that each result has the correct structure
     mockEntity.results.forEach((originalResult, index) => {
       const dtoResult = resultDto.results[index];
-      const expectedHostHash = createHash('sha256').update(originalResult.host).digest('hex');
       
       expect(dtoResult).toMatchObject({
         hubIndex: originalResult.hubIndex,
-        hostHash: expectedHostHash,
         sent: originalResult.sent,
         lost: originalResult.lost,
         averageMs: originalResult.averageMs,

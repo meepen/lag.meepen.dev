@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box, TextField, Button, Typography } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, TextField, Button } from '@mui/material';
 import { Refresh } from '@mui/icons-material';
 
 interface DateControllerProps {
@@ -7,53 +7,84 @@ interface DateControllerProps {
   toDate: Date;
   onDateChange: (from: Date, to: Date) => void;
   loading: boolean;
+  onRefresh?: () => void;
 }
 
 export const DateController: React.FC<DateControllerProps> = ({
   fromDate,
   toDate,
   onDateChange,
-  loading
+  loading,
+  onRefresh
 }) => {
+  const [lastSelectionType, setLastSelectionType] = useState<'preset' | 'manual'>('manual');
+  const [lastPresetDuration, setLastPresetDuration] = useState<number | null>(null); // Duration in milliseconds
   const formatDateForInput = (date: Date) => {
     return date.toISOString().slice(0, 16);
   };
 
   const handleFromChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newDate = new Date(event.target.value);
+    setLastSelectionType('manual');
+    setLastPresetDuration(null);
     onDateChange(newDate, toDate);
   };
 
   const handleToChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newDate = new Date(event.target.value);
+    setLastSelectionType('manual');
+    setLastPresetDuration(null);
     onDateChange(fromDate, newDate);
   };
 
   const handleRefresh = () => {
-    onDateChange(fromDate, toDate);
+    if (lastSelectionType === 'preset' && lastPresetDuration !== null) {
+      // For preset selections, recalculate the time range to current time
+      const now = new Date();
+      const from = new Date(now.getTime() - lastPresetDuration);
+      onDateChange(from, now);
+    } else {
+      // For manual selections, use the external refresh callback if provided
+      if (onRefresh) {
+        onRefresh();
+      } else {
+        // Fallback to keeping the same time range
+        onDateChange(fromDate, toDate);
+      }
+    }
   };
 
   const setLast5Minutes = () => {
     const now = new Date();
-    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
-    onDateChange(fiveMinutesAgo, now);
-  };
-
-  const setLastHour = () => {
+    const duration = 5 * 60 * 1000;
+    const from = new Date(now.getTime() - duration);
+    setLastSelectionType('preset');
+    setLastPresetDuration(duration);
+    onDateChange(from, now);
+  };    const setLastHour = () => {
     const now = new Date();
-    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-    onDateChange(oneHourAgo, now);
+    const duration = 60 * 60 * 1000;
+    const from = new Date(now.getTime() - duration);
+    setLastSelectionType('preset');
+    setLastPresetDuration(duration);
+    onDateChange(from, now);
   };
 
   const setLast24Hours = () => {
     const now = new Date();
-    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const duration = 24 * 60 * 60 * 1000;
+    const twentyFourHoursAgo = new Date(now.getTime() - duration);
+    setLastSelectionType('preset');
+    setLastPresetDuration(duration);
     onDateChange(twentyFourHoursAgo, now);
   };
 
   const setLastWeek = () => {
     const now = new Date();
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const duration = 7 * 24 * 60 * 60 * 1000;
+    const oneWeekAgo = new Date(now.getTime() - duration);
+    setLastSelectionType('preset');
+    setLastPresetDuration(duration);
     onDateChange(oneWeekAgo, now);
   };
 
@@ -61,15 +92,12 @@ export const DateController: React.FC<DateControllerProps> = ({
     const now = new Date();
     // Set to a very early date to get all available data
     const veryEarlyDate = new Date('2020-01-01');
+    setLastSelectionType('manual'); // Treat "All Time" as manual since it's not relative
     onDateChange(veryEarlyDate, now);
   };
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom>
-        Time Range
-      </Typography>
-      
       <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
         <TextField
           label="From"

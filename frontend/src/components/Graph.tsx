@@ -212,10 +212,6 @@ export const Graph: React.FC<GraphProps> = ({ data, loading, error, fromDate, to
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom>
-        Network Latency Over Time (grouped by {groupingInterval.label})
-      </Typography>
-      
       {/* Summary Cards */}
       <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
         <Card sx={{ minWidth: 120 }}>

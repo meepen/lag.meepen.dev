@@ -10,7 +10,6 @@ export class LagResultDto {
 
 export class LagHubResultDto {
   hubIndex!: number;
-  hostHash!: string;
   sent!: number;
   lost!: number;
   averageMs!: number;
