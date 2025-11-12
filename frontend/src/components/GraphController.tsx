@@ -6,21 +6,27 @@ import { Graph } from './Graph';
 import { DetailView } from './DetailView';
 import { BatchBreakdown } from './BatchBreakdown';
 import { apiService } from '../services/api';
-import { LagResultDto } from '../types/lag-result.dto';
+import { LagResultDto, LagHubResultDto } from '../types/lag-result.dto';
+import type { DownsampleResultDto } from '../types/downsample-result.dto';
 import { parseTimeParams, createTimeUrl, getDateRangeFromParams, type TimePreset } from '../utils/urlParams';
 
 export const GraphController: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [lagData, setLagData] = useState<LagResultDto[]>([]);
+  // Aggregated (downsampled) data augmented with bucket range
+  const [lagData, setLagData] = useState<(LagResultDto & { bucketStart: Date; bucketEnd: Date })[]>([]);
+  // Detailed data fetched from lag endpoint for a selected bucket
+  const [detailBatches, setDetailBatches] = useState<LagResultDto[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [highlightTrigger, setHighlightTrigger] = useState(0);
   const [batchHighlightTrigger, setBatchHighlightTrigger] = useState(0);
+  // Separate loading state for detailed fetches so the graph doesn't flicker
+  const [detailLoading, setDetailLoading] = useState(false);
 
   // Refs for stable callbacks and storing selected batches
   const searchParamsRef = useRef(searchParams);
   const setSearchParamsRef = useRef(setSearchParams);
-  const selectedBatchesRef = useRef<LagResultDto[]>([]);
+  // Removed selectedBatchesRef pattern; now we explicitly fetch detail data
 
   // Parse current URL parameters - single source of truth
   const urlParams = useMemo(() => parseTimeParams(searchParams), [searchParams]);
@@ -48,33 +54,15 @@ export const GraphController: React.FC = () => {
   
   // Memoize selectedData computation to use the exact batches from graph click
   const selectedData = useMemo(() => {
-    if (!selectedTimestamp || lagData.length === 0) return null;
-    
-    // If we have batches from the graph click, use those exactly
-    if (selectedBatchesRef.current.length > 0) {
-      return { 
-        timestamp: selectedTimestamp, 
-        batches: selectedBatchesRef.current 
-      };
-    }
-    
-    // Fallback to the old method if no stored batches (shouldn't happen with graph clicks)
-    const batchesAtTimestamp = lagData.filter(batch => {
-      const batchTime = new Date(batch.createdAt).getTime();
-      return Math.abs(batchTime - selectedTimestamp) <= 30000;
-    });
-    
-    return batchesAtTimestamp.length > 0 ? { 
-      timestamp: new Date(batchesAtTimestamp[0].createdAt).getTime(), 
-      batches: batchesAtTimestamp 
-    } : null;
-  }, [selectedTimestamp, lagData]);
+    if (!selectedTimestamp || !detailBatches) return null;
+    return { timestamp: selectedTimestamp, batches: detailBatches };
+  }, [selectedTimestamp, detailBatches]);
   
   // Memoize selectedBatch computation
   const selectedBatch = useMemo(() => {
-    if (!selectedBatchId || lagData.length === 0) return null;
-    return lagData.find(b => b.batchId === selectedBatchId) || null;
-  }, [selectedBatchId, lagData]);
+    if (!selectedBatchId || !detailBatches) return null;
+    return detailBatches.find(b => b.batchId === selectedBatchId) || null;
+  }, [selectedBatchId, detailBatches]);
 
   // Simple URL update function
   const updateUrl = useCallback((params: Partial<{
@@ -107,11 +95,12 @@ export const GraphController: React.FC = () => {
     setError(null);
     
     try {
-      const data = await apiService.getLagData(
+      const downsampled: DownsampleResultDto[] = await apiService.getLagDownsample(
         from.toISOString(),
         to.toISOString()
       );
-      setLagData(data);
+      const transformed: (LagResultDto & { bucketStart: Date; bucketEnd: Date })[] = downsampleedToLagResultDtos(downsampled);
+      setLagData(transformed);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
       setLagData([]);
@@ -139,43 +128,43 @@ export const GraphController: React.FC = () => {
 
   // Validate selected parameters against loaded data and clear if invalid
   useEffect(() => {
-    if (lagData.length === 0) return; // Wait for data to load
-    
+    // Only attempt validation once we actually have downsampled data
+    if (lagData.length === 0) return;
+
     let shouldUpdateUrl = false;
     const urlUpdates: Partial<{
       selectedTimestamp: number | null;
       selectedBatch: string | null;
     }> = {};
 
-    // Check if selected timestamp is valid (has data within 30 seconds)
+    // Validate selected timestamp (must be near at least one downsampled batch)
     if (selectedTimestamp) {
       const hasValidTimestamp = lagData.some(batch => {
         const batchTime = new Date(batch.createdAt).getTime();
-        return Math.abs(batchTime - selectedTimestamp) <= 30000;
+        return Math.abs(batchTime - selectedTimestamp) <= 30000; // 30s tolerance
       });
-      
       if (!hasValidTimestamp) {
         urlUpdates.selectedTimestamp = null;
-        urlUpdates.selectedBatch = null; // Also clear batch if timestamp is invalid
+        urlUpdates.selectedBatch = null; // Clear batch if timestamp invalid
         shouldUpdateUrl = true;
       }
     }
 
-    // Check if selected batch is valid
+    // Validate selected batch: must exist either in detailBatches (actual batch IDs) OR in lagData
+    // We intentionally do NOT clear while detailBatches are still loading (null)
     if (selectedBatchId && !urlUpdates.selectedBatch) {
-      const hasValidBatch = lagData.some(batch => batch.batchId === selectedBatchId);
-      
-      if (!hasValidBatch) {
+      const hasValidBatchInDetails = detailBatches ? detailBatches.some(b => b.batchId === selectedBatchId) : true; // optimistic until details fetched
+      const hasValidBatchInLagData = lagData.some(batch => batch.batchId === selectedBatchId);
+      if (!hasValidBatchInDetails && !hasValidBatchInLagData) {
         urlUpdates.selectedBatch = null;
         shouldUpdateUrl = true;
       }
     }
 
-    // Update URL if any parameters are invalid
     if (shouldUpdateUrl) {
       updateUrl(urlUpdates);
     }
-  }, [lagData, selectedTimestamp, selectedBatchId, updateUrl]);
+  }, [lagData, selectedTimestamp, selectedBatchId, detailBatches, updateUrl]);
 
   // Event handlers - these only update URL, components react to URL changes
   const handleDateChange = useCallback((from: Date, to: Date) => {
@@ -213,8 +202,8 @@ export const GraphController: React.FC = () => {
   }, [updateUrl]);
 
   const handleCloseDetailView = useCallback(() => {
-    selectedBatchesRef.current = []; // Clear stored batches when closing
     updateUrl({ selectedTimestamp: null, selectedBatch: null });
+    setDetailBatches(null);
   }, [updateUrl]);
 
   const handleCloseBatchBreakdown = useCallback(() => {
@@ -230,16 +219,21 @@ export const GraphController: React.FC = () => {
     setSearchParamsRef.current = setSearchParams;
   });
 
-  // Clear stored batches when lag data changes (new data fetch)
-  useEffect(() => {
-    selectedBatchesRef.current = [];
-  }, [lagData]);
+  const stableDataPointClick = useCallback(async (timestamp: number, bucketStart: Date, bucketEnd: Date) => {
+    // Fetch detailed batches for this bucket range using lag endpoint without toggling main graph loading
+    try {
+      setDetailLoading(true);
+      setError(null);
+      const detailed = await apiService.getLagData(bucketStart.toISOString(), bucketEnd.toISOString());
+      setDetailBatches(detailed);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to fetch detailed lag data');
+      setDetailBatches(null);
+    } finally {
+      setDetailLoading(false);
+    }
 
-  const stableDataPointClick = useCallback((timestamp: number, batches: LagResultDto[]) => {
-    // Store the batches that were actually grouped together in the graph
-    selectedBatchesRef.current = batches;
-    
-    // Create URL update using refs to avoid dependency on changing searchParams
+    // Update URL to reflect selected timestamp (we use bucketStart as the anchor)
     const currentParams = parseTimeParams(searchParamsRef.current);
     const newParams = {
       from: currentParams.from,
@@ -248,11 +242,10 @@ export const GraphController: React.FC = () => {
       selectedTimestamp: timestamp.toString(),
       selectedBatch: undefined,
     };
-    
     const urlString = createTimeUrl(newParams);
     setSearchParamsRef.current(urlString);
     setHighlightTrigger(prev => prev + 1);
-  }, []); // No dependencies - truly stable
+  }, []);
 
   const graphProps = useMemo(() => ({
     data: lagData,
@@ -275,13 +268,11 @@ export const GraphController: React.FC = () => {
         onRefresh={handleRefresh}
         loading={loading}
       />
-
       {error && (
         <Box sx={{ color: 'error.main', mt: 2 }}>
           Error: {error}
         </Box>
       )}
-
       <Box sx={{ mt: 3, minHeight: 400, mb: 3 }}>
         <Graph {...graphProps} />
       </Box>
@@ -293,6 +284,7 @@ export const GraphController: React.FC = () => {
             highlightTrigger={highlightTrigger} 
             onBatchClick={handleBatchClick}
             onClose={handleCloseDetailView}
+            detailLoading={detailLoading}
           />
         </Box>
       )}
@@ -312,4 +304,29 @@ export const GraphController: React.FC = () => {
 
 function formatDateForUrl(date: Date): string {
   return date.toISOString();
+}
+
+function downsampleedToLagResultDtos(rows: DownsampleResultDto[]): (LagResultDto & { bucketStart: Date; bucketEnd: Date })[] {
+  return rows.map(row => ({
+    batchId: `bucket-${row.bucketStart.getTime()}`,
+    createdAt: row.bucketStart, // keep createdAt for legacy uses
+    testCount: row.testCount,
+    packetSize: row.packetSize,
+    results: row.results && row.results.length > 0 ? row.results : createAggregateHubResultPlaceholder(),
+    bucketStart: row.bucketStart,
+    bucketEnd: row.bucketEnd,
+  }));
+}
+
+function createAggregateHubResultPlaceholder(): LagHubResultDto[] {
+  // If backend did not return per-hub results (shouldn't happen), create single placeholder.
+  return [{
+    hubIndex: -1,
+    sent: 0,
+    lost: 0,
+    averageMs: 0,
+    bestMs: 0,
+    worstMs: 0,
+    standardDeviationMs: 0,
+  }];
 }

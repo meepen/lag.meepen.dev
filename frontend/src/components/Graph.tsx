@@ -5,22 +5,26 @@ import { LagResultDto } from '../types/lag-result.dto';
 import type { CategoricalChartFunc } from 'recharts/types/chart/types';
 
 interface GraphProps {
-  data: LagResultDto[];
+  // Each entry represents a downsampled bucket augmented with its range
+  data: (LagResultDto & { bucketStart: Date; bucketEnd: Date })[];
   loading: boolean;
   error: string | null;
   fromDate: Date;
   toDate: Date;
-  onDataPointClick?: (timestamp: number, batches: LagResultDto[]) => void;
+  onDataPointClick?: (timestamp: number, bucketStart: Date, bucketEnd: Date) => void;
 }
 
 interface ChartDataPoint {
   time: string;
   timestamp: number;
-  averageLatency: number;
-  minLatency: number;
-  maxLatency: number;
-  batchCount: number;
-  batches: LagResultDto[]; // Store the actual batches that make up this data point
+  averageLatency: number | null;
+  minLatency: number | null;
+  maxLatency: number | null;
+  testCount: number;
+  bucketStart: Date;
+  bucketEnd: Date;
+  batches: LagResultDto[]; // underlying aggregated representation (single placeholder object)
+  empty: boolean; // indicates placeholder bucket with no data
 }
 
 interface TooltipPayload {
@@ -35,83 +39,43 @@ interface TooltipProps {
   label?: string;
 }
 
-export const Graph: React.FC<GraphProps> = React.memo(({ data, loading, error, fromDate, toDate, onDataPointClick }) => {
-  // Determine grouping interval based on time range
-  const getGroupingInterval = (from: Date, to: Date): { minutes: number; label: string } => {
-    const durationMs = to.getTime() - from.getTime();
-    const durationHours = durationMs / (1000 * 60 * 60);
-    
-    if (durationHours < 1) {
-      return { minutes: 1, label: '1 minute' };
-    } else if (durationHours < 24) {
-      return { minutes: 5, label: '5 minutes' };
-    } else if (durationHours < 24 * 7) {
-      return { minutes: 20, label: '20 minutes' };
-    } else if (durationHours < 24 * 30){
-      return { minutes: 120, label: '2 hours' };
-    } else {
-      return { minutes: 1440, label: '1 day' };
-    }
-  };
+export const Graph: React.FC<GraphProps> = React.memo(({ data, loading, error, onDataPointClick }) => {
 
-  // Group data by specified interval and calculate averages
-  const processDataForChart = (batches: LagResultDto[], groupingMinutes: number): ChartDataPoint[] => {
-    const minuteGroups = new Map<string, {
-      latencies: number[];
-      minLatency: number;
-      maxLatency: number;
-      batchCount: number;
-      timestamp: number;
-      batches: LagResultDto[]; // Store the batches in this group
-    }>();
-
-    batches.forEach(batch => {
-      // Round down to the specified grouping interval
-      const date = new Date(batch.createdAt);
-      const minutes = date.getMinutes();
-      const roundedMinutes = Math.floor(minutes / groupingMinutes) * groupingMinutes;
-      date.setMinutes(roundedMinutes, 0, 0);
-      const intervalKey = date.toISOString();
-      
-      // Use only the last hop (final destination) from each batch
-      if (batch.results.length > 0) {
-        const lastHop = batch.results[batch.results.length - 1];
-        const batchAvgLatency = lastHop.averageMs;
-        const batchMinLatency = lastHop.bestMs;
-        const batchMaxLatency = lastHop.worstMs;
-        
-        if (!minuteGroups.has(intervalKey)) {
-          minuteGroups.set(intervalKey, {
-            latencies: [],
-            minLatency: batchMinLatency,
-            maxLatency: batchMaxLatency,
-            batchCount: 0,
-            timestamp: date.getTime(),
-            batches: []
-          });
-        }
-        
-        const group = minuteGroups.get(intervalKey)!;
-        group.latencies.push(batchAvgLatency);
-        group.minLatency = Math.min(group.minLatency, batchMinLatency);
-        group.maxLatency = Math.max(group.maxLatency, batchMaxLatency);
-        group.batchCount++;
-        group.batches.push(batch); // Store the batch in this group
+  // Convert aggregated buckets (each LagResultDto is already a bucket) into chart points.
+  const processAggregatedData = (buckets: (LagResultDto & { bucketStart: Date; bucketEnd: Date })[]): ChartDataPoint[] => {
+    return buckets.map(b => {
+      const timestamp = b.bucketStart.getTime();
+      if (b.results.length === 0) {
+        return {
+          time: new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          timestamp,
+          averageLatency: null,
+          minLatency: null,
+          maxLatency: null,
+          testCount: b.testCount,
+          bucketStart: b.bucketStart,
+          bucketEnd: b.bucketEnd,
+          batches: [b],
+          empty: true,
+        };
       }
-    });
-
-    // Convert to chart data points
-    return Array.from(minuteGroups.entries())
-      .map(([timeStr, group]) => ({
-        time: new Date(timeStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        timestamp: group.timestamp,
-        averageLatency: Number((group.latencies.reduce((sum, lat) => sum + lat, 0) / group.latencies.length).toFixed(2)),
-        minLatency: Number(group.minLatency.toFixed(2)),
-        maxLatency: Number(group.maxLatency.toFixed(2)),
-        batchCount: group.batchCount,
-        batches: group.batches // Include the batches in the chart data point
-      }))
-      .sort((a, b) => a.timestamp - b.timestamp);
+      const lastHop = b.results[b.results.length - 1];
+      const avg = Number(lastHop.averageMs.toFixed(2));
+      const min = Number(lastHop.bestMs.toFixed(2));
+      const max = Number(lastHop.worstMs.toFixed(2));
+      return {
+        time: new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp,
+  averageLatency: avg,
+  minLatency: min,
+  maxLatency: max,
+        testCount: b.testCount,
+        bucketStart: b.bucketStart,
+        bucketEnd: b.bucketEnd,
+        batches: [b],
+        empty: false,
+      };
+    }).sort((a, b2) => a.timestamp - b2.timestamp);
   };
 
   if (loading) {
@@ -141,24 +105,18 @@ export const Graph: React.FC<GraphProps> = React.memo(({ data, loading, error, f
     );
   }
 
-  const groupingInterval = getGroupingInterval(fromDate, toDate);
-  const chartData = processDataForChart(data, groupingInterval.minutes);
+  const chartData = processAggregatedData(data);
+
+  // No log scaling: linear domain will be derived automatically by Recharts.
   
   // Handle chart click events
   const handleChartClick: CategoricalChartFunc = (event) => {
-    // Try to find the clicked data point from the event
     let clickedPoint: ChartDataPoint | null = null;
-    
-    // Check various possible locations for the data
     if (event.activeLabel) {
-      // Find the data point by matching the time label
       clickedPoint = chartData.find(point => point.time === event.activeLabel) || null;
     }
-    
     if (clickedPoint) {
-      // Use the exact batches that were grouped together for this data point
-      // This ensures the DetailView shows the same data the tooltip is calculated from
-      onDataPointClick?.(clickedPoint.timestamp, clickedPoint.batches);
+      onDataPointClick?.(clickedPoint.timestamp, clickedPoint.bucketStart, clickedPoint.bucketEnd);
     }
   };
   
@@ -171,9 +129,10 @@ export const Graph: React.FC<GraphProps> = React.memo(({ data, loading, error, f
   }
 
   // Calculate summary stats
-  const totalBatches = data.length;
+  const totalBuckets = data.length;
   const totalTests = data.reduce((sum, batch) => sum + batch.testCount, 0);
-  const overallAvgLatency = chartData.reduce((sum, point) => sum + point.averageLatency, 0) / chartData.length;
+  const latencyPoints = chartData.filter(p => p.averageLatency !== null);
+  const overallAvgLatency = latencyPoints.length ? latencyPoints.reduce((sum, point) => sum + (point.averageLatency ?? 0), 0) / latencyPoints.length : 0;
 
   const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
     if (active && payload && payload.length) {
@@ -190,17 +149,23 @@ export const Graph: React.FC<GraphProps> = React.memo(({ data, loading, error, f
           <Typography variant="body2" fontWeight="bold">
             Time: {label}
           </Typography>
-          <Typography variant="body2" color="primary">
-            Avg Latency: {data.averageLatency}ms
-          </Typography>
-          <Typography variant="body2" color="success.main">
-            Min: {data.minLatency}ms
-          </Typography>
-          <Typography variant="body2" color="error.main">
-            Max: {data.maxLatency}ms
-          </Typography>
+          {data.empty ? (
+            <Typography variant="body2" color="text.disabled">No data in bucket</Typography>
+          ) : (
+            <>
+              <Typography variant="body2" color="primary">
+                Avg Latency: {data.averageLatency}ms
+              </Typography>
+              <Typography variant="body2" color="success.main">
+                Min: {data.minLatency}ms
+              </Typography>
+              <Typography variant="body2" color="error.main">
+                Max: {data.maxLatency}ms
+              </Typography>
+            </>
+          )}
           <Typography variant="body2" color="text.secondary">
-            Batches: {data.batchCount}
+            Tests: {data.testCount}
           </Typography>
         </Box>
       );
@@ -215,10 +180,10 @@ export const Graph: React.FC<GraphProps> = React.memo(({ data, loading, error, f
         <Card sx={{ minWidth: 120 }}>
           <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
             <Typography variant="h4" color="primary">
-              {totalBatches}
+              {totalBuckets}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Batches
+              Buckets
             </Typography>
           </CardContent>
         </Card>
@@ -273,37 +238,45 @@ export const Graph: React.FC<GraphProps> = React.memo(({ data, loading, error, f
               textAnchor="end"
               height={60}
             />
-            <YAxis 
+            <YAxis
+              domain={[0, 'auto']}
               label={{ value: 'Latency (ms)', angle: -90, position: 'insideLeft' }}
               tick={{ fontSize: 12 }}
+              tickFormatter={(v: number) => {
+                if (v >= 1000) return `${(v/1000).toFixed(1)}s`;
+                return `${v.toFixed(0)}ms`;
+              }}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
-            <Line 
-              type="monotone" 
-              dataKey="averageLatency" 
-              stroke="#1976d2" 
+            <Line
+              type="monotone"
+              dataKey="averageLatency"
+              stroke="#1976d2"
               strokeWidth={2}
               dot={{ r: 4 }}
               name="Average Latency"
+              connectNulls={false}
             />
-            <Line 
-              type="monotone" 
-              dataKey="minLatency" 
-              stroke="#4caf50" 
+            <Line
+              type="monotone"
+              dataKey="minLatency"
+              stroke="#4caf50"
               strokeWidth={1}
               strokeDasharray="5 5"
               dot={{ r: 2 }}
               name="Min Latency"
+              connectNulls={false}
             />
-            <Line 
-              type="monotone" 
-              dataKey="maxLatency" 
-              stroke="#f44336" 
+            <Line
+              type="monotone"
+              dataKey="maxLatency"
+              stroke="#f44336"
               strokeWidth={1}
               strokeDasharray="5 5"
               dot={{ r: 2 }}
               name="Max Latency"
+              connectNulls={false}
             />
           </LineChart>
         </ResponsiveContainer>

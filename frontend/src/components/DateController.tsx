@@ -40,12 +40,32 @@ export const DateController: React.FC<DateControllerProps> = React.memo(({
       default: return 5 * 60 * 1000;
     }
   }
+
+  // Format a Date object as a local datetime string suitable for a datetime-local input
+  // Using toISOString() caused UTC conversion which shifted hours/dates unexpectedly for users.
   const formatDateForInput = (date: Date) => {
-    return date.toISOString().slice(0, 16);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  // Parse a datetime-local string explicitly as local time (avoids timezone flips + implicit UTC conversion)
+  const parseLocalDateTime = (value: string): Date => {
+    // Expected format: YYYY-MM-DDTHH:MM (seconds optional but we ignore)
+    const [datePart, timePart] = value.split('T');
+    if (!datePart || !timePart) return new Date(value); // fallback
+    const [y, m, d] = datePart.split('-').map(Number);
+    const [hh, mm] = timePart.split(':').map(Number);
+    // Construct using local time parts
+    return new Date(y, (m ?? 1) - 1, d ?? 1, hh ?? 0, mm ?? 0, 0, 0);
   };
 
   const handleFromChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newDate = new Date(event.target.value);
+    const newDate = parseLocalDateTime(event.target.value);
     setLastSelectionType('manual');
     setLastPresetDuration(null);
     setLastPreset(null);
@@ -53,7 +73,7 @@ export const DateController: React.FC<DateControllerProps> = React.memo(({
   };
 
   const handleToChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newDate = new Date(event.target.value);
+    const newDate = parseLocalDateTime(event.target.value);
     setLastSelectionType('manual');
     setLastPresetDuration(null);
     setLastPreset(null);
@@ -154,6 +174,7 @@ export const DateController: React.FC<DateControllerProps> = React.memo(({
           onChange={handleFromChange}
           size="small"
           InputLabelProps={{ shrink: true }}
+          inputProps={{ step: 60 }}
         />
         
         <TextField
@@ -163,6 +184,7 @@ export const DateController: React.FC<DateControllerProps> = React.memo(({
           onChange={handleToChange}
           size="small"
           InputLabelProps={{ shrink: true }}
+          inputProps={{ step: 60 }}
         />
         
         <Button

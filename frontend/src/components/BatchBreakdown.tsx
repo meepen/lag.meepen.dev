@@ -48,9 +48,7 @@ export const BatchBreakdown: React.FC<BatchBreakdownProps> = React.memo(({ batch
     }
   }, [highlightTrigger, batch]);
 
-  if (!batch) {
-    return null;
-  }
+  if (!batch) return null;
 
   // Calculate statistics for the batch
   const finalHop = batch.results[batch.results.length - 1];

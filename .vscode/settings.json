@@ -2,5 +2,9 @@
   "typescript.preferences.importModuleSpecifierEnding": "js",
   "typescript.preferences.importModuleSpecifier": "relative",
   "editor.tabSize": 2,
-  "editor.insertSpaces": true
+  "editor.insertSpaces": true,
+  "eslint.workingDirectories": [
+    "api",
+    "frontend"
+  ]
 }

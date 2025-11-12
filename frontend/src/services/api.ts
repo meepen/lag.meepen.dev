@@ -1,5 +1,6 @@
 import { LagResultDto } from '../types/lag-result.dto';
 import { DatabaseSizeDto } from '../types/database-size.dto';
+import type { DownsampleResultDto } from '../types/downsample-result.dto';
 
 class ApiService {
   private baseUrl: URL;
@@ -33,6 +34,23 @@ class ApiService {
     return data.map((batch) => ({
       ...batch,
       createdAt: new Date(batch.createdAt),
+    }));
+  }
+
+  async getLagDownsample(from: string, to: string): Promise<DownsampleResultDto[]> {
+    const params = new URLSearchParams({ from, to });
+    const url = new URL(`lag/downsample?${params}`, this.baseUrl);
+
+    const response = await fetch(url.toString(), { method: 'GET' });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch downsampled lag data: ${response.statusText}`);
+    }
+
+    const raw: Array<Omit<DownsampleResultDto, 'bucketStart' | 'bucketEnd'> & { bucketStart: string; bucketEnd: string }> = await response.json();
+    return raw.map(r => ({
+      ...r,
+      bucketStart: new Date(r.bucketStart),
+      bucketEnd: new Date(r.bucketEnd),
     }));
   }
 

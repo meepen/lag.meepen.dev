@@ -11,12 +11,13 @@ interface DetailViewProps {
   highlightTrigger?: number; // Add this prop to trigger highlighting
   onBatchClick?: (batchId: string) => void; // Add callback for batch row clicks
   onClose?: () => void; // Add callback for closing the detail view
+  detailLoading?: boolean; // Show spinner while fetching detailed data
 }
 
 type SortColumn = 'time' | 'average' | 'min' | 'max' | 'stdDev';
 type SortDirection = 'asc' | 'desc';
 
-export const DetailView: React.FC<DetailViewProps> = React.memo(({ selectedData, highlightTrigger, onBatchClick, onClose }) => {
+export const DetailView: React.FC<DetailViewProps> = React.memo(({ selectedData, highlightTrigger, onBatchClick, onClose, detailLoading }) => {
   const [sortColumn, setSortColumn] = useState<SortColumn>('average');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [batchDetailsExpanded, setBatchDetailsExpanded] = useState(false);
@@ -147,6 +148,14 @@ export const DetailView: React.FC<DetailViewProps> = React.memo(({ selectedData,
           </IconButton>
         )}
       </Box>
+
+      {detailLoading && (
+        <Card sx={{ mb: 2 }}>
+          <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography variant="body2" color="text.secondary">Loading detailed batches...</Typography>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary Cards */}
       <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>

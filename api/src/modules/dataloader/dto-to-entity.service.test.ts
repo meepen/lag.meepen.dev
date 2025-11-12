@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach, vitest } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DtoToEntityService } from './dto-to-entity.service.js';
 import { AppLogger } from '../../common/logger/app-logger.service.js';
-import { INQUIRER } from '@nestjs/core';
 import { plainToInstance } from 'class-transformer';
 import { MtrResultDto } from './dtos/mtr-result.dto.js';
 import { mockMtrBatchWithResults } from '../../entities/mtr_batch.entity.mock.js';
