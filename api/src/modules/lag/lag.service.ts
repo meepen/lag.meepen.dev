@@ -39,12 +39,12 @@ export class LagService {
 
   /**
    * Downsample lag data by aggregating batches into automatically sized time buckets.
-   * Bucket size (minutes) is computed so that bucket count <= MAX_BUCKETS (currently 500).
+   * Bucket size (minutes) is computed so that bucket count <= MAX_BUCKETS
    * @param from start time
    * @param to end time
    */
   async getDownsampledLag(from: Date, to: Date): Promise<DownsampleResultDto[]> {
-    const MAX_BUCKETS = 500;
+    const MAX_BUCKETS = 50;
     // Clamp start to earliest existing batch using TypeORM query builder (indexed MIN scan).
     const earliestRaw = await this.mtrBatchRepository
       .createQueryBuilder('b')
