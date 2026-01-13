@@ -53,11 +53,9 @@ variable "github_repo" {
 variable "api_domain" {
   description = "The domain for the API worker (without protocol or wildcard)"
   type        = string
-  default     = "lag-api.meepen.dev"
 }
 
 variable "frontend_domain" {
   description = "The domain for the frontend application"
   type        = string
-  default     = "lag.meepen.dev"
 }
