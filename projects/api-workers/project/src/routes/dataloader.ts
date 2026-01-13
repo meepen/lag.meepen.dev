@@ -5,7 +5,7 @@ import { mtrBatch, mtrResult } from "@lag.meepen.dev/schema";
 export const dataloader = new Hono<{ Bindings: Env }>();
 
 dataloader.use("*", async (c, next) => {
-  const secret = c.req.header("x-api-secret");
+  const secret = c.req.header("authorization");
   if (!secret || secret !== c.env.API_SECRET) {
     return c.json({ message: "Forbidden" }, 403);
   }

@@ -20,3 +20,6 @@ postgres-data/
 
 # Direnv
 .direnv
+
+# Workers
+.dev.vars

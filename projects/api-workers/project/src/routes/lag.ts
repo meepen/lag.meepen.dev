@@ -2,6 +2,11 @@ import { Hono } from "hono";
 import { getDb, type Env } from "../db";
 import { mtrBatch } from "@lag.meepen.dev/schema";
 import { and, gte, lte, sql } from "drizzle-orm";
+import {
+  LagResultDto,
+  type DownsampleResultDto,
+  type LagHubResultDto,
+} from "@lag.meepen.dev/api-schema";
 
 export const lag = new Hono<{ Bindings: Env }>();
 lag.onError((err, c) => {
@@ -49,7 +54,25 @@ lag.get("/", async (c) => {
     },
   });
 
-  return c.json(batches);
+  return c.json(
+    batches.map<LagResultDto>((batch) => ({
+      batchId: batch.id,
+      createdAt: batch.createdAt,
+      testCount: batch.testCount,
+      packetSize: batch.packetSize,
+      results: batch.results.map<LagHubResultDto>((result) => ({
+        hubIndex: result.hubIndex,
+        sent: result.sent,
+        lost: result.lost,
+        averageMs: result.averageMs,
+        bestMs: result.bestMs,
+        worstMs: result.worstMs,
+        standardDeviationMs: result.standardDeviationMs,
+        p95Ms: 0,
+        p99Ms: 0,
+      })),
+    })),
+  );
 });
 
 lag.get("/size", async (c) => {
@@ -75,10 +98,11 @@ lag.get("/downsample", async (c) => {
   const MAX_BUCKETS = 50;
 
   // Get earliest batch to clamp start time
-  const earliestRes = await db.execute<{ earliest: Date }>(
+  const earliestRes = await db.execute<{ earliest: string }>(
     sql`SELECT MIN(created_at) as earliest FROM mtr_batch`,
   );
-  const earliestDate = earliestRes[0].earliest;
+  console.debug(earliestRes);
+  const earliestDate = new Date(earliestRes[0].earliest);
   if (earliestDate.getTime() > from.getTime()) {
     from = earliestDate;
   }
@@ -91,6 +115,7 @@ lag.get("/downsample", async (c) => {
   const diffMinutes = diffMsRaw / 60_000;
   const bucketMinutes = Math.max(1, Math.ceil(diffMinutes / MAX_BUCKETS));
   const bucketSeconds = bucketMinutes * 60;
+  const bucketMs = bucketMinutes * 60_000; // duration of each bucket in ms
 
   const query = sql`
       SELECT
@@ -108,12 +133,109 @@ lag.get("/downsample", async (c) => {
         AVG(b.packet_size) AS "packetSize"
       FROM mtr_batch b
       JOIN mtr_results r ON r."batchId" = b.id
-      WHERE b.created_at BETWEEN ${from} AND ${to}
+      WHERE b.created_at BETWEEN ${from.toISOString()} AND ${to.toISOString()}
       GROUP BY "bucketStart", r.hub_index
       ORDER BY "bucketStart" ASC, r.hub_index ASC;
     `;
 
-  const rows = await db.execute(query);
+  const rows = (
+    await db.execute<{
+      bucketStart: string;
+      hubIndex: number;
+      sent: string;
+      lost: string;
+      averageMs: string;
+      bestMs: string;
+      worstMs: string;
+      standardDeviationMs: string;
+      p95Ms: string;
+      p99Ms: string;
+      testCount: string;
+      packetSize: string;
+    }>(query)
+  ).values();
 
-  return c.json(rows);
+  // Group aggregated rows by bucket_start
+  const bucketMap = new Map<
+    string,
+    { testCount: number; packetSize: number; hubResults: LagHubResultDto[] }
+  >();
+  for (const r of rows) {
+    const key = r.bucketStart;
+    if (!bucketMap.has(key)) {
+      bucketMap.set(key, {
+        testCount: Number(r.testCount) || 0,
+        packetSize: Math.round(Number(r.packetSize) || 0),
+        hubResults: [],
+      });
+    } else {
+      // Preserve existing testCount/packetSize (take first) to avoid hub duplication inflation.
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const existing = bucketMap.get(key)!;
+      existing.testCount = Number(r.testCount) || existing.testCount;
+      existing.packetSize = Math.round(
+        Number(r.packetSize) || existing.packetSize,
+      );
+    }
+    const hubResult: LagHubResultDto = {
+      hubIndex: r.hubIndex,
+      sent: Number(r.sent) || 0,
+      lost: Number(r.lost) || 0,
+      averageMs: Number(r.averageMs) || 0,
+      bestMs: Number(r.bestMs) || 0,
+      worstMs: Number(r.worstMs) || 0,
+      p95Ms: Number(r.p95Ms) || 0,
+      p99Ms: Number(r.p99Ms) || 0,
+      standardDeviationMs: Number(r.standardDeviationMs) || 0,
+    };
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    bucketMap.get(key)!.hubResults.push(hubResult);
+  }
+
+  // Convert existing buckets to ordered array
+  const existing: DownsampleResultDto[] = Array.from(bucketMap.entries())
+    .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
+    .map(([bucketStart, v]) => {
+      const startDate = new Date(bucketStart);
+      // Tentative end is start + bucketMs; cap at requested 'to' to avoid overshoot.
+      const tentativeEnd = startDate.getTime() + bucketMs;
+      const cappedEnd = Math.min(tentativeEnd, to.getTime());
+      return {
+        bucketStart: startDate,
+        bucketEnd: new Date(cappedEnd),
+        testCount: v.testCount,
+        packetSize: v.packetSize,
+        results: v.hubResults,
+      };
+    });
+
+  // Fill missing buckets from floor(from) to ceil(to) stepping bucketMinutes.
+  const startTs = Math.floor(from.getTime() / bucketMs) * bucketMs;
+  const endTsExclusive = Math.ceil(to.getTime() / bucketMs) * bucketMs; // include partial last
+
+  const existingMap = new Map<number, DownsampleResultDto>();
+  for (const r of existing) {
+    existingMap.set(r.bucketStart.getTime(), r);
+  }
+
+  const filled: DownsampleResultDto[] = [];
+  for (let ts = startTs; ts < endTsExclusive; ts += bucketMs) {
+    const found = existingMap.get(ts);
+    if (found) {
+      filled.push(found);
+    } else {
+      const bucketStart = new Date(ts);
+      const tentativeEnd = ts + bucketMs;
+      const cappedEnd = Math.min(tentativeEnd, to.getTime());
+      filled.push({
+        bucketStart,
+        bucketEnd: new Date(cappedEnd),
+        testCount: 0,
+        packetSize: 0,
+        results: [],
+      });
+    }
+  }
+
+  return c.json(filled);
 });

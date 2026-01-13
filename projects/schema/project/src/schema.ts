@@ -13,7 +13,7 @@ export const mtrBatch = pgTable(
   "mtr_batch",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
       .defaultNow()
       .notNull(),
     sourceName: varchar("source_name").notNull(),

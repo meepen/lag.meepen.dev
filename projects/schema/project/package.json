@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -b tsconfig.app.json",
     "migration:run": "drizzle-kit migrate",
     "migration:generate": "drizzle-kit generate",
     "studio": "drizzle-kit studio",

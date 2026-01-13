@@ -1,5 +1,8 @@
-import type { LagResultDto, LagHubResultDto } from "../types/lag-result.dto";
-import type { DownsampleResultDto } from "../types/downsample-result.dto";
+import type {
+  DownsampleResultDto,
+  LagResultDto,
+  LagHubResultDto,
+} from "@lag.meepen.dev/api-schema";
 
 export function formatDateForUrl(date: Date): string {
   return date.toISOString();

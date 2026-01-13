@@ -20,8 +20,6 @@ import { DateController } from "./DateController";
 import { Graph } from "./Graph";
 import { DetailView } from "./DetailView";
 import { BatchBreakdown } from "./BatchBreakdown";
-import { LagResultDto } from "../types/lag-result.dto";
-import type { DownsampleResultDto } from "../types/downsample-result.dto";
 import { apiService } from "../services/api";
 import {
   parseTimeParams,
@@ -30,6 +28,7 @@ import {
 } from "../utils/urlParams";
 import type { TimePreset } from "../utils/urlParams";
 import { downsampleedToLagResultDtos, metricLabel } from "../utils/graphUtils";
+import type { LagResultDto } from "@lag.meepen.dev/api-schema";
 
 export const GraphController: React.FC = React.memo(() => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -159,8 +158,10 @@ export const GraphController: React.FC = React.memo(() => {
     setError(null);
 
     try {
-      const downsampled: DownsampleResultDto[] =
-        await apiService.getLagDownsample(from.toISOString(), to.toISOString());
+      const downsampled = await apiService.getLagDownsample(
+        from.toISOString(),
+        to.toISOString(),
+      );
       const transformed: (LagResultDto & {
         bucketStart: Date;
         bucketEnd: Date;

@@ -1,6 +1,8 @@
-import { LagResultDto } from "../types/lag-result.dto";
-import { DatabaseSizeDto } from "../types/database-size.dto";
-import type { DownsampleResultDto } from "../types/downsample-result.dto";
+import {
+  DatabaseSizeDto,
+  LagResultDto,
+  type DownsampleResultDto,
+} from "@lag.meepen.dev/api-schema";
 
 class ApiService {
   private baseUrl: URL;

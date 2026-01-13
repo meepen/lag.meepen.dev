@@ -7,3 +7,8 @@ compatibility_flags = [ "nodejs_compat" ]
 [[routes]]
 pattern = "lag-api.meepen.dev/*"
 zone_name = "lag-api.meepen.dev"
+
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "local"
+localConnectionString = "postgresql://user:password@db:5432/mydb"

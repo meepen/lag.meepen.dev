@@ -6,19 +6,23 @@
   "scripts": {
     "build": "wrangler deploy src/index.ts --dry-run --outdir=dist",
     "dev": "wrangler dev src/index.ts",
-    "start": "wrangler dev src/index.ts",
+    "start:prod": "wrangler dev src/index.ts",
+    "prestart:prod": "env > .dev.vars",
     "lint": "eslint ."
   },
   "dependencies": {
     "hono": "^4.0.8",
     "postgres": "^3.4.8",
     "drizzle-orm": "^0.45.1",
-    "@lag.meepen.dev/schema": "workspace:*"
+    "@lag.meepen.dev/schema": "workspace:*",
+    "@lag.meepen.dev/api-schema": "workspace:*"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@cloudflare/workers-types": "^4.20240208.0",
     "wrangler": "^4.58.0",
     "typescript": "^5.3.3",
+    "typescript-eslint": "^8.53.0",
     "eslint": "^9.39.2",
     "jiti": "^2.6.1",
     "eslint-config-prettier": "^10.1.8",

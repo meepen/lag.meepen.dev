@@ -46,9 +46,14 @@ tasks:
   build:
     desc: Build all projects
     cmds:
-      - docker buildx bake
+      - docker buildx bake --progress=plain
 
   start:
     desc: Start all services
     cmds:
       - docker compose up -d
+  
+  stop:
+    desc: Stop all services
+    cmds:
+      - docker compose down

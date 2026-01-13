@@ -1,4 +1,4 @@
-import type { LagResultDto } from "../types/lag-result.dto";
+import type { LagResultDto } from "@lag.meepen.dev/api-schema";
 
 export interface LagControllerState {
   lagData: (LagResultDto & { bucketStart: Date; bucketEnd: Date })[];

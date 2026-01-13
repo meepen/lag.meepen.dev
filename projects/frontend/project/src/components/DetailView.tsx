@@ -15,7 +15,7 @@ import {
   IconButton,
 } from "@mui/material";
 import { ExpandMore, ExpandLess, Close } from "@mui/icons-material";
-import { LagResultDto } from "../types/lag-result.dto";
+import type { LagResultDto } from "@lag.meepen.dev/api-schema";
 
 interface DetailViewProps {
   selectedData: {
@@ -77,9 +77,10 @@ export const DetailView: React.FC<DetailViewProps> = React.memo(
       }
     };
 
-    const handleRowClick = (batchId: string) => {
+    const handleRowClick = (batch: LagResultDto) => {
       if (onBatchClick) {
-        onBatchClick(batchId);
+        console.debug("Batch row clicked:", batch);
+        onBatchClick(batch.batchId);
       }
     };
     if (!selectedData) {
@@ -388,7 +389,7 @@ export const DetailView: React.FC<DetailViewProps> = React.memo(
                       <TableRow
                         key={batch.batchId}
                         onClick={() => {
-                          handleRowClick(batch.batchId);
+                          handleRowClick(batch);
                         }}
                         sx={{
                           cursor: "pointer",

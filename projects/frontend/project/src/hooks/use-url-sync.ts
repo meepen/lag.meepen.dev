@@ -1,7 +1,7 @@
 import { useMemo, useCallback } from "react";
 import type { TimePreset } from "../utils/urlParams";
 import { parseTimeParams, createTimeUrl } from "../utils/urlParams";
-import type { LagResultDto } from "../types/lag-result.dto";
+import type { LagResultDto } from "@lag.meepen.dev/api-schema";
 
 export function useUrlSync(
   searchParams: URLSearchParams,

@@ -17,8 +17,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { LagResultDto } from "../types/lag-result.dto";
 import type { CategoricalChartFunc } from "recharts/types/chart/types";
+import type { LagResultDto } from "@lag.meepen.dev/api-schema";
 
 interface GraphProps {
   data: (LagResultDto & { bucketStart: Date; bucketEnd: Date })[];

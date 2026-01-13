@@ -15,7 +15,7 @@ import {
   IconButton,
 } from "@mui/material";
 import { Close } from "@mui/icons-material";
-import { LagResultDto } from "../types/lag-result.dto";
+import type { LagResultDto } from "@lag.meepen.dev/api-schema";
 
 interface BatchBreakdownProps {
   batch: LagResultDto | null;

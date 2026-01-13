@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
-import type { LagResultDto } from "../types/lag-result.dto";
 import { apiService } from "../services/api";
 import { downsampleedToLagResultDtos } from "../utils/graphUtils";
+import type { LagResultDto } from "@lag.meepen.dev/api-schema";
 
 export function useLagData() {
   const [lagData, setLagData] = useState<
