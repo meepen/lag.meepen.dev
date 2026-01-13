@@ -61,14 +61,14 @@ export const createTimeUrl = (
     newParams.delete("to");
   } else {
     newParams.delete("preset");
-  }
 
-  if (params.from) {
-    newParams.set("from", formatDateForUrl(params.from));
-  }
+    if (params.from) {
+      newParams.set("from", formatDateForUrl(params.from));
+    }
 
-  if (params.to) {
-    newParams.set("to", formatDateForUrl(params.to));
+    if (params.to) {
+      newParams.set("to", formatDateForUrl(params.to));
+    }
   }
 
   if (params.bucketStart && params.bucketEnd) {
