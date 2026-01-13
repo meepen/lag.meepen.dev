@@ -1,0 +1,26 @@
+{
+  "name": "@lag.meepen.dev/migrations",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "tsx ./src/run.ts",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.1",
+    "postgres": "^3.4.8",
+    "@lag.meepen.dev/schema": "workspace:*",
+    "tsx": "^4.21.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "eslint": "^9.39.2",
+    "jiti": "^2.6.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "globals": "^17.0.0"
+  }
+}

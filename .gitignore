@@ -6,3 +6,17 @@ npm-debug.log
 *.local
 coverage/
 postgres-data/
+
+# Terraform files
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Go-task
+.task
+
+# Wrangler
+.wrangler
+
+# Direnv
+.direnv

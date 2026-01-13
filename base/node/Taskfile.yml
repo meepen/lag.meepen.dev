@@ -1,0 +1,27 @@
+version: '3'
+
+tasks:
+  install:
+    desc: Install dependencies
+    cmds:
+      - pnpm install
+    sources:
+      - package.json
+      - pnpm-lock.yaml
+    generates:
+      - node_modules/.pnpm
+
+  build:
+    desc: Build the project
+    cmds:
+      - pnpm run build
+
+  lint:
+    desc: Lint the project
+    cmds:
+      - pnpm run lint
+
+  test:
+    desc: Run tests
+    cmds:
+      - pnpm test

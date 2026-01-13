@@ -1,0 +1,9 @@
+name = "api-workers"
+compatibility_date = "2024-02-08"
+compatibility_flags = [ "nodejs_compat" ]
+
+[vars]
+
+[[routes]]
+pattern = "lag-api.meepen.dev/*"
+zone_name = "lag-api.meepen.dev"

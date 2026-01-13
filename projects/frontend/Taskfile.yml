@@ -1,0 +1,13 @@
+version: 3
+
+includes:
+  base:
+    taskfile: ../../base/node/Taskfile.yml
+    dir: ./project
+
+tasks:
+  start:
+    desc: Start the development server
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - pnpm --filter ./projects/frontend/project dev

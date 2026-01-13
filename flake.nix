@@ -2,7 +2,7 @@
   description = "lag.meepen.dev dev environment";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -21,6 +21,9 @@
             pkgs.jq
             pkgs.curl
             pkgs.mtr
+            pkgs.opentofu
+            pkgs.go-task
+            pkgs.pnpm
           ];
         };
       }

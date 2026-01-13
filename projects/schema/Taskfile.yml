@@ -1,0 +1,9 @@
+version: '3'
+
+vars:
+  PROJECT_DIR: ./project
+
+includes:
+  base:
+    taskfile: ../../base/node/Taskfile.yml
+    dir: "{{.PROJECT_DIR}}"

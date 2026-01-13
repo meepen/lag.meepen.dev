@@ -1,0 +1,6 @@
+version: 3
+
+includes:
+  base:
+    taskfile: ../../base/node/Taskfile.yml
+    dir: ./project

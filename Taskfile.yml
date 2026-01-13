@@ -1,0 +1,54 @@
+version: '3'
+
+dotenv: ['.env']
+
+includes:
+  schema:
+    taskfile: ./projects/schema/Taskfile.yml
+    dir: ./projects/schema
+  api-workers:
+    taskfile: ./projects/api-workers/Taskfile.yml
+    dir: ./projects/api-workers
+  frontend:
+    taskfile: ./projects/frontend/Taskfile.yml
+    dir: ./projects/frontend
+
+tasks:
+  tf:
+    desc: Run OpenTofu commands (aliases to terraform)
+    dir: terraform
+    cmds:
+      - tofu {{.ARGS | default .CLI_ARGS}}
+
+  tf:init:
+    desc: Initialize OpenTofu
+    cmds:
+      - task: tf
+        vars: { ARGS: "init" }
+
+  tf:plan:
+    desc: Plan OpenTofu changes
+    cmds:
+      - task: tf
+        vars: { ARGS: "plan" }
+
+  tf:apply:
+    desc: Apply OpenTofu changes
+    cmds:
+      - task: tf
+        vars: { ARGS: "apply" }
+
+  install:
+    desc: Install local dependencies
+    cmds:
+      - pnpm install
+
+  build:
+    desc: Build all projects
+    cmds:
+      - docker buildx bake
+
+  start:
+    desc: Start all services
+    cmds:
+      - docker compose up -d

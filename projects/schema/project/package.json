@@ -1,0 +1,36 @@
+{
+  "name": "@lag.meepen.dev/schema",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "migration:run": "drizzle-kit migrate",
+    "migration:generate": "drizzle-kit generate",
+    "studio": "drizzle-kit studio",
+    "start": "drizzle-kit migrate",
+    "drizzle": "drizzle-kit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.1",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.16.0",
+    "drizzle-kit": "^0.31.8",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "eslint": "^9.39.2",
+    "jiti": "^2.6.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "globals": "^17.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/schema.js",
+      "types": "./dist/schema.d.ts"
+    }
+  }
+}
