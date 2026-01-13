@@ -43,8 +43,10 @@ resource "cloudflare_workers_script" "api_worker" {
   }
 }
 
-resource "cloudflare_workers_route" "api_route" {
-  zone_id     = var.cloudflare_zone_id
-  pattern     = "${var.domain}/*"
-  script_name = cloudflare_workers_script.api_worker.name
+resource "cloudflare_workers_domain" "api_domain" {
+  account_id = var.cloudflare_account_id
+  zone_id    = var.cloudflare_zone_id
+  
+  hostname   = var.domain 
+  service    = cloudflare_workers_script.api_worker.name
 }
