@@ -58,8 +58,8 @@ interface DateControllerProps {
   };
 }
 
-export const DateController: React.FC<DateControllerProps> = React.memo(
-  ({
+export function DateController(props: DateControllerProps) {
+  const {
     setFromDate,
     setToDate,
     setPreset,
@@ -67,194 +67,192 @@ export const DateController: React.FC<DateControllerProps> = React.memo(
     toDate,
     preset,
     loading,
-  }) => {
-    const [autoRefresh, _setAutoRefresh] = useState<boolean>(false);
+  } = props;
+  const [autoRefresh, _setAutoRefresh] = useState<boolean>(false);
 
-    const [secondsRemaining, setSecondsRemaining] = useState(60);
+  const [secondsRemaining, setSecondsRemaining] = useState(60);
 
-    const handleFromChange = useCallback(
-      (event: React.ChangeEvent<HTMLInputElement>) => {
-        const newDate = parseLocalDateTime(event.target.value);
-        setFromDate(newDate);
-        setPreset(null);
-      },
-      [toDate, setFromDate],
-    );
+  const handleFromChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const newDate = parseLocalDateTime(event.target.value);
+      setFromDate(newDate);
+      setPreset(null);
+    },
+    [setFromDate, setPreset],
+  );
 
-    const handleToChange = useCallback(
-      (event: React.ChangeEvent<HTMLInputElement>) => {
-        const newDate = parseLocalDateTime(event.target.value);
-        setPreset(null);
-        setToDate(newDate);
-      },
-      [fromDate, setToDate],
-    );
+  const handleToChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const newDate = parseLocalDateTime(event.target.value);
+      setPreset(null);
+      setToDate(newDate);
+    },
+    [setPreset, setToDate],
+  );
 
-    // Auto-refresh timer logic
-    useEffect(() => {
-      if (!autoRefresh) {
-        setSecondsRemaining(60);
-        return;
-      }
-
-      const timer = setInterval(() => {
-        setSecondsRemaining((prev) => {
-          if (prev <= 1) {
-            return 60;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      return () => {
-        clearInterval(timer);
-      };
-    }, [autoRefresh]);
-
-    const updatePreset = useCallback(
-      (newPreset: TimePreset) => {
-        setPreset(newPreset);
-        setFromDate(new Date(Date.now() - getPresetDuration(newPreset)));
-        setToDate(new Date());
-      },
-      [setPreset, setFromDate, setToDate],
-    );
-
-    const onRefresh = useCallback(() => {
-      // Trigger a data refresh by updating toDate -- let's figure out how
-      if (preset) {
-        updatePreset(preset);
-      } else {
-        setToDate(new Date(toDate ?? new Date()));
-      }
-    }, [preset, toDate, updatePreset, setToDate]);
-
-    if (preset && (!fromDate || !toDate)) {
-      // Preset is set but dates are missing, initialize them
-      updatePreset(preset);
-    } else if (!preset && !fromDate && !toDate) {
-      updatePreset("5m");
+  // Auto-refresh timer logic
+  useEffect(() => {
+    if (!autoRefresh) {
+      return;
     }
 
-    const setAllTime = useCallback(() => {
-      setPreset(null);
-      setFromDate(new Date("2020-01-01"));
-      setToDate(new Date());
-    }, [setPreset, setFromDate, setToDate]);
+    const timer = setInterval(() => {
+      setSecondsRemaining((prev) => {
+        if (prev <= 0) {
+          return 60;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
-    return (
-      <Box>
+    return () => {
+      clearInterval(timer);
+    };
+  }, [autoRefresh, setSecondsRemaining]);
+
+  const updatePreset = useCallback(
+    (newPreset: TimePreset) => {
+      setPreset(newPreset);
+      setFromDate(new Date(Date.now() - getPresetDuration(newPreset)));
+      setToDate(new Date());
+    },
+    [setPreset, setFromDate, setToDate],
+  );
+
+  const onRefresh = useCallback(() => {
+    // Trigger a data refresh by updating toDate -- let's figure out how
+    if (preset) {
+      updatePreset(preset);
+    } else {
+      setToDate(new Date(toDate ?? new Date()));
+    }
+  }, [preset, toDate, updatePreset, setToDate]);
+
+  if (preset && (!fromDate || !toDate)) {
+    // Preset is set but dates are missing, initialize them
+    updatePreset(preset);
+  } else if (!preset && !fromDate && !toDate) {
+    updatePreset("5m");
+  }
+
+  const setAllTime = useCallback(() => {
+    setPreset(null);
+    setFromDate(new Date("2020-01-01"));
+    setToDate(new Date());
+  }, [setPreset, setFromDate, setToDate]);
+
+  return (
+    <Box>
+      <Box
+        sx={{
+          display: "flex",
+          gap: 2,
+          mb: 2,
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
+        <TextField
+          label="From"
+          type="datetime-local"
+          value={formatDateForInput(fromDate || new Date())}
+          onChange={handleFromChange}
+          size="small"
+          disabled={loading}
+          slotProps={{
+            inputLabel: { shrink: true },
+            htmlInput: { step: 60 },
+          }}
+        />
+
+        <TextField
+          label="To"
+          type="datetime-local"
+          value={formatDateForInput(toDate || new Date())}
+          onChange={handleToChange}
+          size="small"
+          disabled={loading}
+          slotProps={{
+            inputLabel: { shrink: true },
+            htmlInput: { step: 60 },
+          }}
+        />
+
         <Box
           sx={{
             display: "flex",
-            gap: 2,
-            mb: 2,
-            flexWrap: "wrap",
             alignItems: "center",
+            gap: 1,
+            flexGrow: 1,
+            justifyContent: "flex-end",
           }}
         >
-          <TextField
-            label="From"
-            type="datetime-local"
-            value={formatDateForInput(fromDate || new Date())}
-            onChange={handleFromChange}
-            size="small"
-            disabled={loading}
-            slotProps={{
-              inputLabel: { shrink: true },
-              htmlInput: { step: 60 },
-            }}
-          />
-
-          <TextField
-            label="To"
-            type="datetime-local"
-            value={formatDateForInput(toDate || new Date())}
-            onChange={handleToChange}
-            size="small"
-            disabled={loading}
-            slotProps={{
-              inputLabel: { shrink: true },
-              htmlInput: { step: 60 },
-            }}
-          />
-
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              flexGrow: 1,
-              justifyContent: "flex-end",
-            }}
-          >
-            <Button
-              variant="outlined"
-              startIcon={<Refresh />}
-              size="small"
-              disabled={loading}
-              onClick={onRefresh}
-            >
-              {autoRefresh ? `Refresh (${secondsRemaining}s)` : "Refresh"}
-            </Button>
-          </Box>
-        </Box>
-
-        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
           <Button
-            variant="text"
+            variant="outlined"
+            startIcon={<Refresh />}
             size="small"
-            onClick={() => {
-              updatePreset("5m");
-            }}
             disabled={loading}
+            onClick={onRefresh}
           >
-            Last 5m
-          </Button>
-
-          <Button
-            variant="text"
-            size="small"
-            onClick={() => {
-              updatePreset("1h");
-            }}
-            disabled={loading}
-          >
-            Last 1h
-          </Button>
-
-          <Button
-            variant="text"
-            size="small"
-            onClick={() => {
-              updatePreset("24h");
-            }}
-            disabled={loading}
-          >
-            Last 24h
-          </Button>
-
-          <Button
-            variant="text"
-            size="small"
-            onClick={() => {
-              updatePreset("7d");
-            }}
-            disabled={loading}
-          >
-            Last Week
-          </Button>
-
-          <Button
-            variant="text"
-            size="small"
-            onClick={setAllTime}
-            disabled={loading}
-          >
-            All Time
+            {autoRefresh ? `Refresh (${secondsRemaining}s)` : "Refresh"}
           </Button>
         </Box>
       </Box>
-    );
-  },
-);
+
+      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+        <Button
+          variant="text"
+          size="small"
+          onClick={() => {
+            updatePreset("5m");
+          }}
+          disabled={loading}
+        >
+          Last 5m
+        </Button>
+
+        <Button
+          variant="text"
+          size="small"
+          onClick={() => {
+            updatePreset("1h");
+          }}
+          disabled={loading}
+        >
+          Last 1h
+        </Button>
+
+        <Button
+          variant="text"
+          size="small"
+          onClick={() => {
+            updatePreset("24h");
+          }}
+          disabled={loading}
+        >
+          Last 24h
+        </Button>
+
+        <Button
+          variant="text"
+          size="small"
+          onClick={() => {
+            updatePreset("7d");
+          }}
+          disabled={loading}
+        >
+          Last Week
+        </Button>
+
+        <Button
+          variant="text"
+          size="small"
+          onClick={setAllTime}
+          disabled={loading}
+        >
+          All Time
+        </Button>
+      </Box>
+    </Box>
+  );
+}

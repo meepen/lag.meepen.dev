@@ -34,6 +34,10 @@ export default defineConfig([
         ...globals.browser,
       },
     },
+    extends: [
+      react.configs.flat.recommended,
+      reactHooks.configs.flat["recommended-latest"],
+    ],
   },
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,

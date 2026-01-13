@@ -11,7 +11,7 @@ import type { TimePreset } from "../utils/urlParams";
 import { downsampleedToLagResultDtos, metricLabel } from "../utils/graphUtils";
 import type { LagResultDto } from "@lag.meepen.dev/api-schema";
 
-export const GraphController: React.FC = React.memo(() => {
+export function GraphController(): React.ReactElement {
   const [searchParams, setSearchParams] = useSearchParams();
   // Aggregated (downsampled) data augmented with bucket range
   const [lagData, setLagData] = useState<
@@ -36,7 +36,6 @@ export const GraphController: React.FC = React.memo(() => {
   );
   useEffect(() => {
     if (!selectedBucket) {
-      setBucketDetails(null);
       return;
     }
 
@@ -68,12 +67,18 @@ export const GraphController: React.FC = React.memo(() => {
   const [selectedBatch, setSelectedBatch] = useState<LagResultDto | null>(null);
   useEffect(() => {
     if (!selectedBatchId || !bucketDetails) {
-      setSelectedBatch(null);
       return;
     }
 
     const batch =
       bucketDetails.find((b) => b.batchId === selectedBatchId) || null;
+    if (batch === null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedBatch(null);
+      setSelectedBatchId(null);
+      return;
+    }
+
     setSelectedBatch(batch);
   }, [selectedBatchId, bucketDetails]);
 
@@ -81,6 +86,7 @@ export const GraphController: React.FC = React.memo(() => {
     // update all parameters now
     const params = parseTimeParams(searchParams);
     if (params.preset) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPreset(params.preset);
     }
     if (params.from) {
@@ -175,6 +181,7 @@ export const GraphController: React.FC = React.memo(() => {
       return;
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError(null);
 
@@ -285,4 +292,4 @@ export const GraphController: React.FC = React.memo(() => {
       )}
     </Paper>
   );
-});
+}
