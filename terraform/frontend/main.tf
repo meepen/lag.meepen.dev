@@ -4,7 +4,7 @@ resource "cloudflare_pages_project" "frontend" {
   production_branch = var.production_branch
 
   build_config {
-    build_command   = "pnpm --filter=@lag.meepen.dev/frontend build"
+    build_command   = "pnpm --filter=@lag.meepen.dev/frontend --filter=@lag.meepen.dev/api-schema build"
     destination_dir = "projects/frontend/project/dist"
     root_dir        = "."
   }
