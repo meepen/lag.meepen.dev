@@ -18,11 +18,8 @@ import { ExpandMore, ExpandLess, Close } from "@mui/icons-material";
 import type { LagResultDto } from "@lag.meepen.dev/api-schema";
 
 interface DetailViewProps {
-  selectedData: {
-    timestamp: number;
-    batches: LagResultDto[];
-  } | null;
-  highlightTrigger?: number; // Add this prop to trigger highlighting
+  selectedData?: LagResultDto[] | null;
+  bucketInfo: { start: Date; end: Date } | null;
   onBatchClick?: (batchId: string) => void; // Add callback for batch row clicks
   onClose?: () => void; // Add callback for closing the detail view
   detailLoading?: boolean; // Show spinner while fetching detailed data
@@ -32,13 +29,10 @@ type SortColumn = "time" | "average" | "min" | "max" | "stdDev";
 type SortDirection = "asc" | "desc";
 
 export const DetailView: React.FC<DetailViewProps> = React.memo(
-  ({
-    selectedData,
-    highlightTrigger,
-    onBatchClick,
-    onClose,
-    detailLoading,
-  }) => {
+  ({ selectedData, onBatchClick, onClose, detailLoading, bucketInfo }) => {
+    if (!bucketInfo) {
+      return null;
+    }
     const [sortColumn, setSortColumn] = useState<SortColumn>("average");
     const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
     const [batchDetailsExpanded, setBatchDetailsExpanded] = useState(false);
@@ -47,26 +41,24 @@ export const DetailView: React.FC<DetailViewProps> = React.memo(
 
     // Handle highlighting when a new data point is clicked
     useEffect(() => {
-      if (highlightTrigger && selectedData) {
-        // Scroll to the detail view
-        detailViewRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
+      // Scroll to the detail view
+      detailViewRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
 
-        // Trigger highlight animation
-        setIsHighlighted(true);
+      // Trigger highlight animation
+      setIsHighlighted(true);
 
-        // Remove highlight after animation
-        const timer = setTimeout(() => {
-          setIsHighlighted(false);
-        }, 2000); // 2 seconds highlight duration
+      // Remove highlight after animation
+      const timer = setTimeout(() => {
+        setIsHighlighted(false);
+      }, 2000); // 2 seconds highlight duration
 
-        return () => {
-          clearTimeout(timer);
-        };
-      }
-    }, [highlightTrigger, selectedData]);
+      return () => {
+        clearTimeout(timer);
+      };
+    }, [selectedData]);
 
     const handleSort = (column: SortColumn) => {
       if (sortColumn === column) {
@@ -83,7 +75,7 @@ export const DetailView: React.FC<DetailViewProps> = React.memo(
         onBatchClick(batch.batchId);
       }
     };
-    if (!selectedData) {
+    if (!selectedData || selectedData.length === 0) {
       return (
         <Card sx={{ mt: 3 }}>
           <CardContent>
@@ -95,11 +87,13 @@ export const DetailView: React.FC<DetailViewProps> = React.memo(
       );
     }
 
-    const { timestamp, batches } = selectedData;
-    const selectedTime = new Date(timestamp);
+    const selectedTime = new Date(
+      bucketInfo.start.getTime() +
+        (bucketInfo.end.getTime() - bucketInfo.start.getTime()) / 2,
+    );
 
     // Sort batches based on current sort settings
-    const sortedBatches = [...batches].sort((a, b) => {
+    const sortedBatches = [...selectedData].sort((a, b) => {
       const aFinalHop = a.results.at(-1);
       const bFinalHop = b.results.at(-1);
 
@@ -136,8 +130,11 @@ export const DetailView: React.FC<DetailViewProps> = React.memo(
     });
 
     // Calculate aggregate stats for this time period
-    const totalTests = batches.reduce((sum, batch) => sum + batch.testCount, 0);
-    const finalHops = batches
+    const totalTests = selectedData.reduce(
+      (sum, batch) => sum + batch.testCount,
+      0,
+    );
+    const finalHops = selectedData
       .map((batch) => batch.results[batch.results.length - 1])
       .filter(Boolean);
 
@@ -210,7 +207,7 @@ export const DetailView: React.FC<DetailViewProps> = React.memo(
           <Card sx={{ minWidth: 120 }}>
             <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
               <Typography variant="h4" color="primary">
-                {batches.length}
+                {selectedData.length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Batches

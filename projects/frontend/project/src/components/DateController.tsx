@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Box, TextField, Button } from "@mui/material";
 import { Refresh } from "@mui/icons-material";
 import type { TimePreset } from "../utils/urlParams";
@@ -45,158 +45,102 @@ const parseLocalDateTime = (value: string): Date => {
 };
 
 interface DateControllerProps {
-  fromDate: Date;
-  toDate: Date;
-  onDateChange: (from: Date, to: Date) => void;
-  onPresetChange?: (preset: TimePreset) => void;
-  onPresetRefresh?: (preset: TimePreset) => void;
+  setFromDate: (date?: Date) => void;
+  setToDate: (date?: Date) => void;
+  setPreset: (preset: TimePreset | null) => void;
+  preset?: TimePreset | null;
+  toDate?: Date;
+  fromDate?: Date;
   loading: boolean;
-  onRefresh?: () => void;
-  initialPreset?: TimePreset | null; // To initialize the preset state from URL
+  dateRange?: {
+    from: Date;
+    to: Date;
+  };
 }
 
 export const DateController: React.FC<DateControllerProps> = React.memo(
   ({
+    setFromDate,
+    setToDate,
+    setPreset,
     fromDate,
     toDate,
-    onDateChange,
-    onPresetChange,
-    onPresetRefresh,
+    preset,
     loading,
-    onRefresh,
-    initialPreset,
   }) => {
-    const [lastSelectionType, setLastSelectionType] = useState<
-      "preset" | "manual"
-    >(initialPreset ? "preset" : "manual");
-    const [lastPresetDuration, setLastPresetDuration] = useState<number | null>(
-      initialPreset ? getPresetDuration(initialPreset) : null,
-    );
-    const [lastPreset, setLastPreset] = useState<TimePreset | null>(
-      initialPreset || null,
-    );
+    const [autoRefresh, _setAutoRefresh] = useState<boolean>(false);
+
+    const [secondsRemaining, setSecondsRemaining] = useState(60);
 
     const handleFromChange = useCallback(
       (event: React.ChangeEvent<HTMLInputElement>) => {
         const newDate = parseLocalDateTime(event.target.value);
-        setLastSelectionType("manual");
-        setLastPresetDuration(null);
-        setLastPreset(null);
-        onDateChange(newDate, toDate);
+        setFromDate(newDate);
+        setPreset(null);
       },
-      [toDate, onDateChange],
+      [toDate, setFromDate],
     );
 
     const handleToChange = useCallback(
       (event: React.ChangeEvent<HTMLInputElement>) => {
         const newDate = parseLocalDateTime(event.target.value);
-        setLastSelectionType("manual");
-        setLastPresetDuration(null);
-        setLastPreset(null);
-        onDateChange(fromDate, newDate);
+        setPreset(null);
+        setToDate(newDate);
       },
-      [fromDate, onDateChange],
+      [fromDate, setToDate],
     );
 
-    const handleRefresh = useCallback(() => {
-      if (lastSelectionType === "preset" && lastPreset && onPresetRefresh) {
-        // For preset selections, refresh using the preset callback to maintain URL structure
-        onPresetRefresh(lastPreset);
-      } else if (
-        lastSelectionType === "preset" &&
-        lastPresetDuration !== null
-      ) {
-        // Fallback: recalculate the time range to current time
-        const now = new Date();
-        const from = new Date(now.getTime() - lastPresetDuration);
-        onDateChange(from, now);
-      } else {
-        // For manual selections, use the external refresh callback if provided
-        if (onRefresh) {
-          onRefresh();
-        } else {
-          // Fallback to keeping the same time range
-          onDateChange(fromDate, toDate);
-        }
+    // Auto-refresh timer logic
+    useEffect(() => {
+      if (!autoRefresh) {
+        setSecondsRemaining(60);
+        return;
       }
-    }, [
-      lastSelectionType,
-      lastPreset,
-      lastPresetDuration,
-      onPresetRefresh,
-      onRefresh,
-      fromDate,
-      toDate,
-      onDateChange,
-    ]);
 
-    const setLast5Minutes = useCallback(() => {
-      setLastSelectionType("preset");
-      setLastPresetDuration(5 * 60 * 1000);
-      setLastPreset("5m");
+      const timer = setInterval(() => {
+        setSecondsRemaining((prev) => {
+          if (prev <= 1) {
+            return 60;
+          }
+          return prev - 1;
+        });
+      }, 1000);
 
-      if (onPresetChange) {
-        onPresetChange("5m");
+      return () => {
+        clearInterval(timer);
+      };
+    }, [autoRefresh]);
+
+    const updatePreset = useCallback(
+      (newPreset: TimePreset) => {
+        setPreset(newPreset);
+        setFromDate(new Date(Date.now() - getPresetDuration(newPreset)));
+        setToDate(new Date());
+      },
+      [setPreset, setFromDate, setToDate],
+    );
+
+    const onRefresh = useCallback(() => {
+      // Trigger a data refresh by updating toDate -- let's figure out how
+      if (preset) {
+        updatePreset(preset);
       } else {
-        const now = new Date();
-        const from = new Date(now.getTime() - 5 * 60 * 1000);
-        onDateChange(from, now);
+        setToDate(new Date(toDate ?? new Date()));
       }
-    }, [onPresetChange, onDateChange]);
+    }, [preset, toDate, updatePreset, setToDate]);
 
-    const setLastHour = useCallback(() => {
-      setLastSelectionType("preset");
-      setLastPresetDuration(60 * 60 * 1000);
-      setLastPreset("1h");
-
-      if (onPresetChange) {
-        onPresetChange("1h");
-      } else {
-        const now = new Date();
-        const from = new Date(now.getTime() - 60 * 60 * 1000);
-        onDateChange(from, now);
-      }
-    }, [onPresetChange, onDateChange]);
-
-    const setLast24Hours = useCallback(() => {
-      setLastSelectionType("preset");
-      setLastPresetDuration(24 * 60 * 60 * 1000);
-      setLastPreset("24h");
-
-      if (onPresetChange) {
-        onPresetChange("24h");
-      } else {
-        const now = new Date();
-        const twentyFourHoursAgo = new Date(
-          now.getTime() - 24 * 60 * 60 * 1000,
-        );
-        onDateChange(twentyFourHoursAgo, now);
-      }
-    }, [onPresetChange, onDateChange]);
-
-    const setLastWeek = useCallback(() => {
-      setLastSelectionType("preset");
-      setLastPresetDuration(7 * 24 * 60 * 60 * 1000);
-      setLastPreset("7d");
-
-      if (onPresetChange) {
-        onPresetChange("7d");
-      } else {
-        const now = new Date();
-        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        onDateChange(oneWeekAgo, now);
-      }
-    }, [onPresetChange, onDateChange]);
+    if (preset && (!fromDate || !toDate)) {
+      // Preset is set but dates are missing, initialize them
+      updatePreset(preset);
+    } else if (!preset && !fromDate && !toDate) {
+      updatePreset("5m");
+    }
 
     const setAllTime = useCallback(() => {
-      const now = new Date();
-      // Set to a very early date to get all available data
-      const veryEarlyDate = new Date("2020-01-01");
-      setLastSelectionType("manual"); // Treat "All Time" as manual since it's not relative
-      setLastPresetDuration(null);
-      setLastPreset(null);
-      onDateChange(veryEarlyDate, now);
-    }, [onDateChange]);
+      setPreset(null);
+      setFromDate(new Date("2020-01-01"));
+      setToDate(new Date());
+    }, [setPreset, setFromDate, setToDate]);
 
     return (
       <Box>
@@ -212,9 +156,10 @@ export const DateController: React.FC<DateControllerProps> = React.memo(
           <TextField
             label="From"
             type="datetime-local"
-            value={formatDateForInput(fromDate)}
+            value={formatDateForInput(fromDate || new Date())}
             onChange={handleFromChange}
             size="small"
+            disabled={loading}
             slotProps={{
               inputLabel: { shrink: true },
               htmlInput: { step: 60 },
@@ -224,31 +169,44 @@ export const DateController: React.FC<DateControllerProps> = React.memo(
           <TextField
             label="To"
             type="datetime-local"
-            value={formatDateForInput(toDate)}
+            value={formatDateForInput(toDate || new Date())}
             onChange={handleToChange}
             size="small"
+            disabled={loading}
             slotProps={{
               inputLabel: { shrink: true },
               htmlInput: { step: 60 },
             }}
           />
 
-          <Button
-            variant="outlined"
-            onClick={handleRefresh}
-            disabled={loading}
-            startIcon={<Refresh />}
-            size="small"
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              flexGrow: 1,
+              justifyContent: "flex-end",
+            }}
           >
-            Refresh
-          </Button>
+            <Button
+              variant="outlined"
+              startIcon={<Refresh />}
+              size="small"
+              disabled={loading}
+              onClick={onRefresh}
+            >
+              {autoRefresh ? `Refresh (${secondsRemaining}s)` : "Refresh"}
+            </Button>
+          </Box>
         </Box>
 
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
           <Button
             variant="text"
             size="small"
-            onClick={setLast5Minutes}
+            onClick={() => {
+              updatePreset("5m");
+            }}
             disabled={loading}
           >
             Last 5m
@@ -257,7 +215,9 @@ export const DateController: React.FC<DateControllerProps> = React.memo(
           <Button
             variant="text"
             size="small"
-            onClick={setLastHour}
+            onClick={() => {
+              updatePreset("1h");
+            }}
             disabled={loading}
           >
             Last 1h
@@ -266,7 +226,9 @@ export const DateController: React.FC<DateControllerProps> = React.memo(
           <Button
             variant="text"
             size="small"
-            onClick={setLast24Hours}
+            onClick={() => {
+              updatePreset("24h");
+            }}
             disabled={loading}
           >
             Last 24h
@@ -275,7 +237,9 @@ export const DateController: React.FC<DateControllerProps> = React.memo(
           <Button
             variant="text"
             size="small"
-            onClick={setLastWeek}
+            onClick={() => {
+              updatePreset("7d");
+            }}
             disabled={loading}
           >
             Last Week

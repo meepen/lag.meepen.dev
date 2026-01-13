@@ -18,38 +18,39 @@ import { Close } from "@mui/icons-material";
 import type { LagResultDto } from "@lag.meepen.dev/api-schema";
 
 interface BatchBreakdownProps {
-  batch: LagResultDto | null;
-  highlightTrigger?: number; // Add this prop to trigger highlighting
+  batch?: LagResultDto | null;
+  selectedBatchId?: string; // Optional selected batch ID for highlighting
   onClose?: () => void; // Add callback for closing the batch breakdown
 }
 
 export const BatchBreakdown: React.FC<BatchBreakdownProps> = React.memo(
-  ({ batch, highlightTrigger, onClose }) => {
+  ({ batch, onClose }) => {
     const [isHighlighted, setIsHighlighted] = useState(false);
     const batchBreakdownRef = useRef<HTMLDivElement>(null);
 
     // Handle highlighting when a batch is selected via URL
     useEffect(() => {
-      if (highlightTrigger && batch) {
-        // Scroll to the batch breakdown
-        batchBreakdownRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-
-        // Trigger highlight animation
-        setIsHighlighted(true);
-
-        // Remove highlight after animation
-        const timer = setTimeout(() => {
-          setIsHighlighted(false);
-        }, 2000); // 2 seconds highlight duration
-
-        return () => {
-          clearTimeout(timer);
-        };
+      if (!batch) {
+        return;
       }
-    }, [highlightTrigger, batch]);
+      // Scroll to the batch breakdown
+      batchBreakdownRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+
+      // Trigger highlight animation
+      setIsHighlighted(true);
+
+      // Remove highlight after animation
+      const timer = setTimeout(() => {
+        setIsHighlighted(false);
+      }, 2000); // 2 seconds highlight duration
+
+      return () => {
+        clearTimeout(timer);
+      };
+    }, [batch]);
 
     if (!batch) {
       return null;

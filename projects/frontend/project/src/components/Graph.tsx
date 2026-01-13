@@ -5,7 +5,12 @@ import {
   Alert,
   CircularProgress,
   Card,
-  CardContent,
+  Button,
+  Menu,
+  MenuItem,
+  Checkbox,
+  FormControlLabel,
+  FormGroup,
 } from "@mui/material";
 import {
   LineChart,
@@ -24,14 +29,23 @@ interface GraphProps {
   data: (LagResultDto & { bucketStart: Date; bucketEnd: Date })[];
   loading: boolean;
   error: string | null;
-  fromDate: Date;
-  toDate: Date;
+  fromDate?: Date;
+  toDate?: Date;
   onDataPointClick?: (
     timestamp: number,
     bucketStart: Date,
     bucketEnd: Date,
   ) => void;
   selectedMetrics: string[]; // ['p95','p99','max','avg','min'] subset
+  metricsMenuAnchor: null | HTMLElement;
+  onOpenMetricsMenu: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onCloseMetricsMenu: () => void;
+  metricsOptions: {
+    key: string;
+    label: string;
+    checked: boolean;
+    onChange: () => void;
+  }[];
 }
 
 interface ChartDataPoint {
@@ -46,7 +60,6 @@ interface ChartDataPoint {
   bucketStart: Date;
   bucketEnd: Date;
   batches: LagResultDto[];
-  empty: boolean;
 }
 
 interface TooltipPayload {
@@ -62,12 +75,22 @@ interface TooltipProps {
 }
 
 export const Graph: React.FC<GraphProps> = React.memo(
-  ({ data, loading, error, onDataPointClick, selectedMetrics }) => {
+  ({
+    data,
+    loading,
+    error,
+    onDataPointClick,
+    selectedMetrics,
+    metricsMenuAnchor,
+    onOpenMetricsMenu,
+    onCloseMetricsMenu,
+    metricsOptions,
+  }) => {
     // Convert aggregated buckets (each LagResultDto is already a bucket) into chart points.
     const processAggregatedData = (
       buckets: (LagResultDto & { bucketStart: Date; bucketEnd: Date })[],
     ): ChartDataPoint[] => {
-      return buckets
+      const rawBuckets = buckets
         .map((b) => {
           const timestamp = b.bucketStart.getTime();
           if (b.results.length === 0) {
@@ -86,7 +109,6 @@ export const Graph: React.FC<GraphProps> = React.memo(
               bucketStart: b.bucketStart,
               bucketEnd: b.bucketEnd,
               batches: [b],
-              empty: true,
             };
           }
           const lastHop = b.results[b.results.length - 1];
@@ -110,10 +132,21 @@ export const Graph: React.FC<GraphProps> = React.memo(
             bucketStart: b.bucketStart,
             bucketEnd: b.bucketEnd,
             batches: [b],
-            empty: false,
           };
         })
         .sort((a, b2) => a.timestamp - b2.timestamp);
+
+      // cut off the first and / or last point if they are empty to avoid misleading gaps
+      if (rawBuckets.length > 0 && rawBuckets[0].testCount === 0) {
+        rawBuckets.shift();
+      }
+      if (
+        rawBuckets.length > 0 &&
+        rawBuckets[rawBuckets.length - 1].testCount === 0
+      ) {
+        rawBuckets.pop();
+      }
+      return rawBuckets;
     };
 
     if (loading) {
@@ -174,17 +207,6 @@ export const Graph: React.FC<GraphProps> = React.memo(
       );
     }
 
-    // Calculate summary stats
-    const totalBuckets = data.length;
-    const totalTests = data.reduce((sum, batch) => sum + batch.testCount, 0);
-    const latencyPoints = chartData.filter((p) => p.averageLatency !== null);
-    const overallAvgLatency = latencyPoints.length
-      ? latencyPoints.reduce(
-          (sum, point) => sum + (point.averageLatency ?? 0),
-          0,
-        ) / latencyPoints.length
-      : 0;
-
     const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
       if (active && payload && payload.length) {
         const data = payload[0].payload;
@@ -202,7 +224,7 @@ export const Graph: React.FC<GraphProps> = React.memo(
             <Typography variant="body2" fontWeight="bold">
               Time: {label}
             </Typography>
-            {data.empty ? (
+            {data.testCount === 0 ? (
               <Typography variant="body2" color="text.disabled">
                 No data in bucket
               </Typography>
@@ -248,53 +270,6 @@ export const Graph: React.FC<GraphProps> = React.memo(
 
     return (
       <Box>
-        {/* Summary Cards */}
-        <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
-          <Card sx={{ minWidth: 120 }}>
-            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-              <Typography variant="h4" color="primary">
-                {totalBuckets}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Buckets
-              </Typography>
-            </CardContent>
-          </Card>
-
-          <Card sx={{ minWidth: 120 }}>
-            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-              <Typography variant="h4" color="primary">
-                {overallAvgLatency.toFixed(1)}ms
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Avg Latency
-              </Typography>
-            </CardContent>
-          </Card>
-
-          <Card sx={{ minWidth: 120 }}>
-            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-              <Typography variant="h4" color="primary">
-                {chartData.length}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Data Points
-              </Typography>
-            </CardContent>
-          </Card>
-
-          <Card sx={{ minWidth: 120 }}>
-            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-              <Typography variant="h4" color="primary">
-                {totalTests}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Total Tests
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-
         {/* Chart */}
         <Card sx={{ p: 2 }}>
           <ResponsiveContainer width="100%" height={400}>
@@ -387,6 +362,38 @@ export const Graph: React.FC<GraphProps> = React.memo(
               )}
             </LineChart>
           </ResponsiveContainer>
+          <Box sx={{ display: "flex", justifyContent: "center", pb: 2 }}>
+            <Button variant="outlined" size="small" onClick={onOpenMetricsMenu}>
+              Metrics
+            </Button>
+            <Menu
+              anchorEl={metricsMenuAnchor}
+              open={Boolean(metricsMenuAnchor)}
+              onClose={onCloseMetricsMenu}
+            >
+              <FormGroup sx={{ px: 2, py: 1 }}>
+                {metricsOptions.map((option) => (
+                  <FormControlLabel
+                    key={option.key}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={option.checked}
+                        onChange={option.onChange}
+                      />
+                    }
+                    label={option.label}
+                  />
+                ))}
+              </FormGroup>
+              <MenuItem
+                onClick={onCloseMetricsMenu}
+                sx={{ justifyContent: "center", fontSize: 12 }}
+              >
+                Close
+              </MenuItem>
+            </Menu>
+          </Box>
         </Card>
       </Box>
     );

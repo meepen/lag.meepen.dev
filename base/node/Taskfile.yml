@@ -25,3 +25,8 @@ tasks:
     desc: Run tests
     cmds:
       - pnpm test
+
+  start:
+    desc: Start the development server
+    cmds:
+      - pnpm run dev
