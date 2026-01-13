@@ -24,6 +24,7 @@ module "api" {
   postgres_password = var.postgres_password
   api_secret        = var.api_secret
   domain            = var.api_domain
+  cors_origins      = "https://${var.frontend_domain}"
 }
 
 module "frontend" {

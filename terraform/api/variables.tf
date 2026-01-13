@@ -39,3 +39,8 @@ variable "domain" {
   description = "The domain for the worker"
   type        = string
 }
+
+variable "cors_origins" {
+  description = "Allowed CORS origins"
+  type        = string
+}

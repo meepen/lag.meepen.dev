@@ -41,6 +41,11 @@ resource "cloudflare_workers_script" "api_worker" {
     name = "API_SECRET"
     text = var.api_secret
   }
+
+  plain_text_binding {
+    name = "CORS_ORIGINS"
+    text = var.cors_origins
+  }
 }
 
 resource "cloudflare_workers_domain" "api_domain" {

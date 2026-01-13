@@ -5,6 +5,7 @@ import { type Hyperdrive } from "@cloudflare/workers-types";
 
 export type Env = {
   HYPERDRIVE: Hyperdrive;
+  CORS_ORIGINS: string;
   API_SECRET?: string;
 };
 
