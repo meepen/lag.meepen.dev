@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { getDb, type Env } from "../db";
-import { mtrBatch, mtrResult } from "@lag.meepen.dev/schema";
-import { and, gte, lte, sql, eq, gt } from "drizzle-orm";
+import { mtrBatch } from "@lag.meepen.dev/schema";
+import { and, gte, lte, sql } from "drizzle-orm";
 import {
   LagResultDto,
   type DownsampleResultDto,
@@ -21,24 +21,29 @@ async function getUptimeStats(
   to: Date,
   threshold: number,
 ): Promise<UptimeDto> {
-  const totalRes = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(mtrBatch)
-    .where(and(gte(mtrBatch.createdAt, from), lte(mtrBatch.createdAt, to)));
-  const total = totalRes[0].count;
+  const query = sql`
+    WITH batch_stats AS (
+      SELECT 
+        to_timestamp(floor(extract(epoch from b.created_at) / 300) * 300) as bucket,
+        EXISTS (
+          SELECT 1 FROM mtr_results r 
+          WHERE r."batchId" = b.id 
+          AND (r.worst_ms > ${threshold} OR r.lost > 0)
+        ) as is_bad
+      FROM mtr_batch b
+      WHERE b.created_at >= ${from.toISOString()} 
+      AND b.created_at <= ${to.toISOString()}
+    )
+    SELECT
+      count(DISTINCT bucket)::int as total,
+      count(DISTINCT bucket) FILTER (WHERE is_bad)::int as bad
+    FROM batch_stats
+  `;
 
-  const badRes = await db
-    .select({ count: sql<number>`count(distinct ${mtrBatch.id})` })
-    .from(mtrBatch)
-    .innerJoin(mtrResult, eq(mtrBatch.id, mtrResult.batchId))
-    .where(
-      and(
-        gte(mtrBatch.createdAt, from),
-        lte(mtrBatch.createdAt, to),
-        gt(mtrResult.averageMs, threshold),
-      ),
-    );
-  const bad = badRes[0].count;
+  const res = await db.execute<{ total: number; bad: number }>(query);
+  const row = res[0];
+  const total = row.total || 0;
+  const bad = row.bad || 0;
 
   const uptimePercentage = total > 0 ? ((total - bad) / total) * 100 : 0;
   const unusuablePercentage = total > 0 ? (bad / total) * 100 : 0;
