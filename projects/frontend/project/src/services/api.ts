@@ -2,6 +2,7 @@ import {
   DatabaseSizeDto,
   LagResultDto,
   type DownsampleResultDto,
+  type UptimeDto,
 } from "@lag.meepen.dev/api-schema";
 
 class ApiService {
@@ -83,6 +84,21 @@ class ApiService {
     }
 
     return (await response.json()) as DatabaseSizeDto;
+  }
+
+  async getUptimeStats(threshold: number): Promise<UptimeDto> {
+    const params = new URLSearchParams({ threshold: threshold.toString() });
+    const url = new URL(`lag/uptime?${params}`, this.baseUrl);
+
+    const response = await fetch(url.toString(), {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch uptime stats: ${response.statusText}`);
+    }
+
+    return (await response.json()) as UptimeDto;
   }
 }
 

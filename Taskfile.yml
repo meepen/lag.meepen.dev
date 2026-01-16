@@ -38,10 +38,15 @@ tasks:
       - task: tf
         vars: { ARGS: "apply" }
 
-  install:
+  local:install:
     desc: Install local dependencies
     cmds:
       - pnpm install
+  
+  local:build:
+    desc: Build all local projects
+    cmds:
+      - pnpm -r build
 
   build:
     desc: Build all projects

@@ -1,11 +1,12 @@
 import { Hono } from "hono";
 import { getDb, type Env } from "../db";
-import { mtrBatch } from "@lag.meepen.dev/schema";
-import { and, gte, lte, sql } from "drizzle-orm";
+import { mtrBatch, mtrResult } from "@lag.meepen.dev/schema";
+import { and, gte, lte, sql, eq, gt } from "drizzle-orm";
 import {
   LagResultDto,
   type DownsampleResultDto,
   type LagHubResultDto,
+  type UptimeDto,
 } from "@lag.meepen.dev/api-schema";
 
 export const lag = new Hono<{ Bindings: Env }>();
@@ -14,7 +15,68 @@ lag.onError((err, c) => {
   return c.json({ error: "Internal Server Error" }, 500);
 });
 
+async function getUptimeStats(
+  db: ReturnType<typeof getDb>,
+  from: Date,
+  to: Date,
+  threshold: number,
+): Promise<UptimeDto> {
+  const totalRes = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(mtrBatch)
+    .where(and(gte(mtrBatch.createdAt, from), lte(mtrBatch.createdAt, to)));
+  const total = totalRes[0].count;
+
+  const badRes = await db
+    .select({ count: sql<number>`count(distinct ${mtrBatch.id})` })
+    .from(mtrBatch)
+    .innerJoin(mtrResult, eq(mtrBatch.id, mtrResult.batchId))
+    .where(
+      and(
+        gte(mtrBatch.createdAt, from),
+        lte(mtrBatch.createdAt, to),
+        gt(mtrResult.averageMs, threshold),
+      ),
+    );
+  const bad = badRes[0].count;
+
+  const uptimePercentage = total > 0 ? ((total - bad) / total) * 100 : 0;
+  const unusuablePercentage = total > 0 ? (bad / total) * 100 : 0;
+
+  return {
+    startedAt: from.toISOString(),
+    endedAt: to.toISOString(),
+    uptimePercentage,
+    unusuablePercentage,
+  };
+}
+
 const MAX_RAW_RANGE_HOURS = 24;
+
+lag.get("/uptime", async (c) => {
+  const fromStr = c.req.query("from") || "2020-01-01";
+  const toStr = c.req.query("to") || new Date().toISOString();
+  const thresholdStr = c.req.query("threshold");
+
+  if (!thresholdStr) {
+    return c.json({ error: "Missing threshold parameter" }, 400);
+  }
+
+  const from = new Date(fromStr);
+  const to = new Date(toStr);
+  const threshold = Number(thresholdStr);
+
+  if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+    return c.json({ error: "Invalid date parameters" }, 400);
+  }
+  if (isNaN(threshold)) {
+    return c.json({ error: "Invalid threshold parameter" }, 400);
+  }
+
+  const db = getDb(c.env);
+  const stats = await getUptimeStats(db, from, to, threshold);
+  return c.json(stats);
+});
 
 lag.get("/", async (c) => {
   const fromStr = c.req.query("from");
