@@ -127,7 +127,9 @@ export const UptimeCard: React.FC<UptimeCardProps> = ({
             backgroundColor: "rgba(255, 255, 255, 0.2)",
           },
         }}
-        onClick={() => !isEditing && setIsEditing(true)}
+        onClick={() => {
+          setIsEditing(true);
+        }}
       >
         <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

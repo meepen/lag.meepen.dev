@@ -15,7 +15,7 @@ function App() {
             {import.meta.env.VITE_APP_NAME || "Network Lag Monitor"}
           </Typography>
           <Box sx={{ display: "flex", gap: 2 }}>
-            <UptimeCard threshold={150} />
+            <UptimeCard initialThreshold={150} />
             <DatabaseSizeCard />
           </Box>
         </Toolbar>
