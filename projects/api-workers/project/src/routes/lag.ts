@@ -21,29 +21,33 @@ async function getUptimeStats(
   to: Date,
   threshold: number,
 ): Promise<UptimeDto> {
+  const bucketSizeSeconds = 15 * 60; // 15 minutes
   const query = sql`
-    WITH batch_stats AS (
+    WITH bucket_stats AS (
       SELECT 
-        to_timestamp(floor(extract(epoch from b.created_at) / 300) * 300) as bucket,
-        EXISTS (
-          SELECT 1 FROM mtr_results r 
-          WHERE r."batchId" = b.id 
-          AND (r.worst_ms > ${threshold} OR r.lost > 0)
-        ) as is_bad
+        to_timestamp(floor(extract(epoch from b.created_at) / ${bucketSizeSeconds}) * ${bucketSizeSeconds}) as bucket,
+        max(r.worst_ms) as max_latency,
+        sum(r.lost) as total_lost,
+        sum(r.sent) as total_sent
       FROM mtr_batch b
+      JOIN mtr_results r ON r."batchId" = b.id
       WHERE b.created_at >= ${from.toISOString()} 
       AND b.created_at <= ${to.toISOString()}
+      GROUP BY 1
     )
     SELECT
-      count(DISTINCT bucket)::int as total,
-      count(DISTINCT bucket) FILTER (WHERE is_bad)::int as bad
-    FROM batch_stats
+      count(bucket)::int as total,
+      count(bucket) FILTER (
+        WHERE max_latency > ${threshold} 
+        OR (total_sent > 0 AND total_lost::float / total_sent > 0.8)
+      )::int as bad
+    FROM bucket_stats
   `;
 
   const res = await db.execute<{ total: number; bad: number }>(query);
   const row = res[0];
-  const total = row.total || 0;
-  const bad = row.bad || 0;
+  const total = row.total;
+  const bad = row.bad;
 
   const uptimePercentage = total > 0 ? ((total - bad) / total) * 100 : 0;
   const unusuablePercentage = total > 0 ? (bad / total) * 100 : 0;
