@@ -26,3 +26,5 @@ Taskfile*.yml
 **/Dockerfile
 **/Taskfile.*.yml
 **/Taskfile.yml
+
+postgres-data
