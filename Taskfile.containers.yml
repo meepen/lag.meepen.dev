@@ -1,0 +1,118 @@
+version: '3'
+
+vars:
+  BUILDER:
+    sh: |
+      if command -v docker >/dev/null 2>&1; then
+        echo docker
+      else
+        echo podman
+      fi
+
+tasks:
+  default:
+    desc: Build all services
+    deps:
+      - task: _base-node
+        vars: { BUILDER: '{{.BUILDER}}' }
+    cmds:
+      - task: _build_services_parallel
+        vars:
+          BUILDER: '{{.BUILDER}}'
+
+  build:
+    desc: Build all projects
+    cmds:
+      - task: default
+        vars: { BUILDER: '{{.BUILDER}}' }
+
+  start:
+    desc: Start all services
+    cmds:
+      - '{{.BUILDER}} compose up -d'
+
+  stop:
+    desc: Stop all services
+    cmds:
+      - '{{.BUILDER}} compose down'
+
+  _build_services_parallel:
+    internal: true
+    deps:
+      - task: frontend
+        vars:
+          BUILDER: '{{.BUILDER}}'
+      - task: api
+        vars:
+          BUILDER: '{{.BUILDER}}'
+      - task: migrations
+        vars:
+          BUILDER: '{{.BUILDER}}'
+      - task: dataloader
+        vars:
+          BUILDER: '{{.BUILDER}}'
+
+  _build:
+    internal: true
+    vars:
+      DOCKERFILE: '{{default "Dockerfile" .DOCKERFILE}}'
+      CONTEXT: '{{default "." .CONTEXT}}'
+      EXTRA_FLAGS: '{{default "" .EXTRA_FLAGS}}'
+    cmds:
+      - >-
+        {{.BUILDER}} build
+        -f {{.DOCKERFILE}}
+        -t {{.NAME}}:latest
+        {{.EXTRA_FLAGS}}
+        {{.CONTEXT}}
+
+  _base-node:
+    internal: true
+    cmds:
+      - task: _build
+        vars:
+          NAME: lag.meepen.dev.localhost/base
+          DOCKERFILE: base/node/Dockerfile
+          CONTEXT: .
+          EXTRA_FLAGS: '--secret id=env,src=.env'
+          BUILDER: '{{.BUILDER}}'
+
+  frontend:
+    desc: Build Frontend
+    cmds:
+      - task: _build
+        vars:
+          NAME: lag.meepen.dev.localhost/frontend
+          DOCKERFILE: projects/frontend/Dockerfile
+          CONTEXT: projects
+          BUILDER: '{{.BUILDER}}'
+
+  api:
+    desc: Build API
+    cmds:
+      - task: _build
+        vars:
+          NAME: lag.meepen.dev.localhost/api
+          DOCKERFILE: projects/api-workers/Dockerfile
+          CONTEXT: projects
+          BUILDER: '{{.BUILDER}}'
+
+  migrations:
+    desc: Build Migrations
+    cmds:
+      - task: _build
+        vars:
+          NAME: lag.meepen.dev.localhost/migrations
+          DOCKERFILE: projects/migrations/Dockerfile
+          CONTEXT: projects
+          BUILDER: '{{.BUILDER}}'
+
+  dataloader:
+    desc: Build Dataloader
+    cmds:
+      - task: _build
+        vars:
+          NAME: lag.meepen.dev.localhost/dataloader
+          DOCKERFILE: projects/dataloader/Dockerfile
+          CONTEXT: projects/dataloader
+          BUILDER: '{{.BUILDER}}'

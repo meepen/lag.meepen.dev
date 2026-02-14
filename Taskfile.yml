@@ -2,7 +2,18 @@ version: '3'
 
 dotenv: ['.env']
 
+vars:
+  BUILDER:
+    sh: |
+      if command -v docker >/dev/null 2>&1; then
+        echo docker
+      else
+        echo podman
+      fi
+
 includes:
+  containers:
+    taskfile: ./Taskfile.containers.yml
   schema:
     taskfile: ./projects/schema/Taskfile.yml
     dir: ./projects/schema
@@ -12,8 +23,17 @@ includes:
   frontend:
     taskfile: ./projects/frontend/Taskfile.yml
     dir: ./projects/frontend
+  migrations:
+    taskfile: ./projects/migrations/Taskfile.yml
+    dir: ./projects/migrations
 
 tasks:
+  default:
+    desc: Build all services
+    cmds:
+      - task: containers:default
+        vars: { BUILDER: '{{.BUILDER}}' }
+
   tf:
     desc: Run OpenTofu commands (aliases to terraform)
     dir: terraform
@@ -51,14 +71,22 @@ tasks:
   build:
     desc: Build all projects
     cmds:
-      - docker buildx bake --progress=plain
+      - task: containers:build
+        vars: { BUILDER: '{{.BUILDER}}' }
 
   start:
     desc: Start all services
     cmds:
-      - docker compose up -d
+      - task: containers:start
+        vars: { BUILDER: '{{.BUILDER}}' }
   
   stop:
     desc: Stop all services
     cmds:
-      - docker compose down
+      - task: containers:stop
+        vars: { BUILDER: '{{.BUILDER}}' }
+
+  install:
+    desc: Install dependencies and build all projects
+    cmds:
+      - cmd: pnpm install

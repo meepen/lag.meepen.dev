@@ -169,7 +169,7 @@
               "expression": "host",
               "asc": true,
               "nulls": "last",
-              "opclass": "int4_ops",
+              "opclass": "varchar_ops",
               "isExpression": false
             }
           ],

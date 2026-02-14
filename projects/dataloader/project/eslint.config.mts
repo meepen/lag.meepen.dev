@@ -3,12 +3,6 @@ import js from "@eslint/js";
 import prettier from "eslint-plugin-prettier/recommended";
 import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
-import react from "eslint-plugin-react";
-import reactHooks from "eslint-plugin-react-hooks";
-import { ESLint } from "eslint";
-
-// Use array form to control ordering and ensure plugin defined only once.
-// Collect strict type-checked rules from typescript-eslint presets without redefining the plugin.
 
 const allTsFiles = ["**/*.ts", "**/*.mts", "**/*.cts", "**/*.tsx"];
 
@@ -16,14 +10,9 @@ export default defineConfig([
   globalIgnores(["dist"]),
   {
     files: allTsFiles,
-    plugins: {
-      react,
-      "react-hooks": reactHooks as ESLint.Plugin,
-    },
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
-        // Enable project service for performant type-aware linting.
         projectService: true,
         ecmaFeatures: {
           jsx: true,
@@ -32,21 +21,14 @@ export default defineConfig([
       },
       globals: {
         ...globals.node,
-        ...globals.browser,
       },
     },
-    extends: [
-      react.configs.flat.recommended,
-      react.configs.flat["jsx-runtime"],
-      reactHooks.configs.flat["recommended-latest"],
-    ],
   },
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
   {
     files: allTsFiles,
     rules: {
-      // Project-specific overrides/additions
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": [
         "error",
@@ -61,7 +43,6 @@ export default defineConfig([
   {
     files: ["**/*.module.ts"],
     rules: {
-      // Disable extraneous-class for NestJS module pattern (decorated empty classes).
       "@typescript-eslint/no-extraneous-class": "off",
     },
   },
@@ -72,7 +53,6 @@ export default defineConfig([
       "@typescript-eslint/no-extraneous-class": "off",
     },
   },
-  // Prettier last to disable conflicting stylistic rules.
   prettier,
   {
     files: allTsFiles,

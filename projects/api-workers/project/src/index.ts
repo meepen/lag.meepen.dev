@@ -1,7 +1,6 @@
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import { lag } from "./routes/lag";
-import { dataloader } from "./routes/dataloader";
 import type { Env } from "./db.js";
 
 const app = new Hono();
@@ -29,7 +28,6 @@ app.use(
 );
 
 app.route("/lag", lag);
-app.route("/dataloader", dataloader);
 
 app.get("/health", (c) => c.text("OK"));
 

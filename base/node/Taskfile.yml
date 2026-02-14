@@ -29,4 +29,4 @@ tasks:
   start:
     desc: Start the development server
     cmds:
-      - pnpm run dev
+      - pnpm run start:dev

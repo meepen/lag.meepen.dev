@@ -35,11 +35,6 @@ variable "postgres_password" {
   sensitive = true
 }
 
-variable "api_secret" {
-  type      = string
-  sensitive = true
-}
-
 variable "github_owner" {
   description = "GitHub owner for the frontend repo"
   type        = string

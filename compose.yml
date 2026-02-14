@@ -1,7 +1,7 @@
 services:
   # PostgreSQL Database
   db:
-    image: postgres:17
+    image: docker.io/library/postgres:17
     env_file:
       - .env
     volumes:
@@ -19,7 +19,7 @@ services:
   
   # Schema Migrator
   migrations:
-    image: lag-meepen-dev/migrations:latest
+    image: lag.meepen.dev.localhost/migrations:latest
     depends_on:
       db:
         condition: service_healthy
@@ -33,12 +33,9 @@ services:
 
   # Cloudflare Worker API
   api:
-    image: lag-meepen-dev/api:latest
+    image: lag.meepen.dev.localhost/api:latest
     ports:
-      - "3100:3000"
-    depends_on:
-      migrations:
-        condition: service_completed_successfully
+      - "${API_PORT}:3000"
     env_file:
       - .env
     healthcheck:
@@ -52,20 +49,22 @@ services:
 
   # Dataloader Service (ran on a network to track network info)
   dataloader:
-    image: lag-meepen-dev/dataloader:latest
+    image: lag.meepen.dev.localhost/dataloader:latest
     depends_on:
-      - api
+      db:
+        condition: service_healthy
     env_file:
       - .env
     environment:
-      API_BASE_URL: http://api:3000
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
     networks:
       - internal
 
   frontend:
-    image: lag-meepen-dev/frontend:latest
+    image: lag.meepen.dev.localhost/frontend:latest
     ports:
-      - "3101:3000"
+      - "${FRONTEND_PORT}:3000"
     networks:
       - internal
 

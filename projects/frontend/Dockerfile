@@ -1,17 +1,13 @@
 # syntax=docker/dockerfile:1
 
-FROM base AS builder
-COPY . ./projects
+FROM lag.meepen.dev.localhost/base AS deployment
+RUN pnpm --filter=@lag.meepen.dev/frontend deploy /app/dist
 
-RUN pnpm install --frozen-lockfile
-
-RUN --mount=type=secret,id=vite_env \
-    set -a; . /run/secrets/vite_env; set +a; pnpm --filter=@lag.meepen.dev/frontend --filter=@lag.meepen.dev/api-schema build
-
-FROM builder AS production
+FROM node:24-alpine AS production
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=deployment /app/dist /app
 RUN npm install -g serve
 
-USER node
-WORKDIR /app/projects/frontend/project
-EXPOSE 3000
-CMD ["serve", "-s", "dist", "-l", "3000"]
+# Each file that uses this base image should update ENTRYPOINT as needed.
+ENTRYPOINT ["npx", "serve", "dist"]

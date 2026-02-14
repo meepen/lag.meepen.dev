@@ -1,14 +1,11 @@
 
-FROM alpine:3.20
+FROM lag.meepen.dev.localhost/base AS deployment
+RUN pnpm --filter=@lag.meepen.dev/dataloader deploy /app/dist
 
-# Install runtime dependencies
-RUN apk add --no-cache \
-    mtr \
-    curl
-
+FROM node:24-alpine AS production
+ENV NODE_ENV=production
 WORKDIR /app
-COPY entrypoint.sh ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh
+RUN apk add --no-cache mtr
+COPY --from=deployment /app/dist /app
 
-# Use the entrypoint script
-ENTRYPOINT ["./entrypoint.sh"]
+ENTRYPOINT ["npm", "run", "start"]

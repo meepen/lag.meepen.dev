@@ -37,11 +37,6 @@ resource "cloudflare_workers_script" "api_worker" {
     id      = cloudflare_hyperdrive_config.api_db.id
   }
 
-  secret_text_binding {
-    name = "API_SECRET"
-    text = var.api_secret
-  }
-
   plain_text_binding {
     name = "CORS_ORIGINS"
     text = var.cors_origins

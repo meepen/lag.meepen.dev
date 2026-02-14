@@ -22,7 +22,6 @@ module "api" {
   postgres_db       = var.postgres_db
   postgres_user     = var.postgres_user
   postgres_password = var.postgres_password
-  api_secret        = var.api_secret
   domain            = var.api_domain
   cors_origins      = "https://${var.frontend_domain}"
 }

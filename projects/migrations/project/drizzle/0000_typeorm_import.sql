@@ -25,4 +25,4 @@ CREATE TABLE "mtr_results" (
 ALTER TABLE "mtr_results" ADD CONSTRAINT "FK_1dc6ef42708724dc64b7e9f8a83" FOREIGN KEY ("batchId") REFERENCES "public"."mtr_batch"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "idx_mtr_batch_created_at" ON "mtr_batch" USING btree ("created_at" timestamp_ops);--> statement-breakpoint
 CREATE INDEX "idx_mtr_results_batch_id" ON "mtr_results" USING btree ("batchId" uuid_ops);--> statement-breakpoint
-CREATE INDEX "idx_mtr_results_hub_index_host" ON "mtr_results" USING btree ("hub_index" int4_ops,"host" int4_ops);
+CREATE INDEX "idx_mtr_results_hub_index_host" ON "mtr_results" USING btree ("hub_index" int4_ops,"host" varchar_ops);

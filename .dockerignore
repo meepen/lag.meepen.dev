@@ -1,0 +1,28 @@
+# General:
+**/.*
+!.npmrc
+scripts
+**/*.md
+infrastructure
+.envrc
+compose.yml
+flake.*
+Taskfile*.yml
+*.tgz
+
+# Node.js:
+**/.wrangler
+**/dist
+**/node_modules
+**/wrangler.tf.toml
+**/.tmp
+**/docs
+**/scrape-src
+
+/config
+/terraform
+.vscode
+**/*.Dockerfile
+**/Dockerfile
+**/Taskfile.*.yml
+**/Taskfile.yml

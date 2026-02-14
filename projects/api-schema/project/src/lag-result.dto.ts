@@ -1,6 +1,7 @@
 export class LagResultDto {
   batchId!: string;
   createdAt!: Date;
+  collector!: string;
   testCount!: number;
   packetSize!: number;
   results!: LagHubResultDto[];

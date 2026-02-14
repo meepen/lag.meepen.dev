@@ -30,11 +30,6 @@ variable "postgres_password" {
   sensitive = true
 }
 
-variable "api_secret" {
-  type      = string
-  sensitive = true
-}
-
 variable "domain" {
   description = "The domain for the worker"
   type        = string

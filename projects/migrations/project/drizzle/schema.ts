@@ -27,7 +27,7 @@ export const mtrResults = pgTable("mtr_results", {
 	batchId: uuid(),
 }, (table) => [
 	index("idx_mtr_results_batch_id").using("btree", table.batchId.asc().nullsLast().op("uuid_ops")),
-	index("idx_mtr_results_hub_index_host").using("btree", table.hubIndex.asc().nullsLast().op("int4_ops"), table.host.asc().nullsLast().op("int4_ops")),
+	index("idx_mtr_results_hub_index_host").using("btree", table.hubIndex.asc().nullsLast().op("int4_ops"), table.host.asc().nullsLast().op("varchar_ops")),
 	foreignKey({
 			columns: [table.batchId],
 			foreignColumns: [mtrBatch.id],
