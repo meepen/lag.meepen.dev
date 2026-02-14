@@ -15,6 +15,7 @@ Taskfile*.yml
 **/dist
 **/node_modules
 **/wrangler.tf.toml
+**/wrangler.deploy.toml
 **/.tmp
 **/docs
 **/scrape-src

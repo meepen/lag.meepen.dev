@@ -14,6 +14,7 @@
         devShells.default = pkgs.mkShell {
           buildInputs = [
             pkgs.nodejs_24
+            pkgs.python3
             pkgs.bashInteractive
             pkgs.git
             pkgs.docker-compose

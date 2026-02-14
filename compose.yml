@@ -2,10 +2,19 @@ services:
   # PostgreSQL Database
   db:
     image: docker.io/library/postgres:17
+    command:
+      - postgres
+      - -c
+      - ssl=${POSTGRES_SSL_ENABLED:-off}
+      - -c
+      - ssl_cert_file=${POSTGRES_SSL_CERT_FILE:-/etc/postgresql/certs/server.crt}
+      - -c
+      - ssl_key_file=${POSTGRES_SSL_KEY_FILE:-/etc/postgresql/certs/server.key}
     env_file:
       - .env
     volumes:
       - ./postgres-data:/var/lib/postgresql/data
+      - ${POSTGRES_SSL_CERTS_DIR:-./postgres-certs}:${POSTGRES_SSL_CERTS_MOUNT_PATH:-/etc/postgresql/certs}:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
@@ -25,9 +34,15 @@ services:
         condition: service_healthy
     env_file:
       - .env
+    volumes:
+      - ${POSTGRES_SSL_CERTS_DIR:-./postgres-certs}:${POSTGRES_SSL_CERTS_MOUNT_PATH:-/etc/postgresql/certs}:ro
     environment:
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
+      POSTGRES_SSL_MODE: ${POSTGRES_SSL_MODE:-disable}
+      POSTGRES_SSL_ROOT_CERT: ${POSTGRES_SSL_ROOT_CERT:-}
+      PGSSLMODE: ${POSTGRES_SSL_MODE:-disable}
+      PGSSLROOTCERT: ${POSTGRES_SSL_ROOT_CERT:-}
     networks:
       - internal
 
@@ -58,6 +73,10 @@ services:
     environment:
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
+      POSTGRES_SSL_MODE: ${POSTGRES_SSL_MODE:-disable}
+      POSTGRES_SSL_ROOT_CERT: ${POSTGRES_SSL_ROOT_CERT:-}
+      PGSSLMODE: ${POSTGRES_SSL_MODE:-disable}
+      PGSSLROOTCERT: ${POSTGRES_SSL_ROOT_CERT:-}
     networks:
       - internal
 

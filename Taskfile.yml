@@ -58,6 +58,26 @@ tasks:
       - task: tf
         vars: { ARGS: "apply" }
 
+  tf:import:
+    desc: Import existing Cloudflare resources into OpenTofu state
+    cmds:
+      - task: tf:init
+      - python3 ./scripts/tf_import_cloudflare.py
+
+  tf:worker:template:
+    desc: Render wrangler deploy config from Terraform template output
+    cmds:
+      - task: tf:init
+      - tofu -chdir=terraform output -raw api_worker_wrangler_deploy_toml > projects/api-workers/project/wrangler.deploy.toml
+
+  tf:worker:deploy:
+    desc: Render wrangler deploy config and deploy worker from Terraform context
+    cmds:
+      - task: worker:setup
+      - task: tf:worker:template
+      - cd projects/api-workers/project && pnpm exec wrangler deploy src/index.ts --config wrangler.deploy.toml
+      - rm -f projects/api-workers/project/wrangler.deploy.toml
+
   local:install:
     desc: Install local dependencies
     cmds:
@@ -67,6 +87,23 @@ tasks:
     desc: Build all local projects
     cmds:
       - pnpm -r build
+
+  worker:setup:
+    desc: Set up API worker project dependencies
+    cmds:
+      - task: api-workers:setup
+
+  worker:deploy:
+    desc: Create API worker deployment artifact
+    cmds:
+      - task: tf:worker:deploy
+
+  deploy:
+    desc: Apply infrastructure, then deploy the API worker with wrangler
+    cmds:
+      - task: worker:setup
+      - task: tf:apply
+      - task: worker:deploy
 
   build:
     desc: Build all projects

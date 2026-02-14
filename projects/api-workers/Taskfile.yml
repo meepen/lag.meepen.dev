@@ -4,3 +4,20 @@ includes:
   base:
     taskfile: ../../base/node/Taskfile.yml
     dir: ./project
+
+tasks:
+  setup:
+    desc: Set up the API worker project
+    cmds:
+      - task: base:install
+
+  build:
+    desc: Build the API worker deployment artifact
+    cmds:
+      - task: base:build
+
+  deploy:
+    desc: Deploy API worker using wrangler.deploy.toml
+    cmds:
+      - task: setup
+      - cd ./project && pnpm exec wrangler deploy src/index.ts --config wrangler.deploy.toml

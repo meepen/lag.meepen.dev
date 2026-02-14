@@ -1,5 +1,6 @@
 import { promisify } from "node:util";
 import { execFile } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { mtrBatch, mtrResult } from "@lag.meepen.dev/schema";
@@ -14,6 +15,10 @@ const envSchema = z.object({
   POSTGRES_USER: z.string().min(1),
   POSTGRES_PASSWORD: z.string().min(1),
   POSTGRES_DB: z.string().min(1),
+  POSTGRES_SSL_MODE: z
+    .enum(["disable", "require", "verify-ca", "verify-full"])
+    .default("disable"),
+  POSTGRES_SSL_ROOT_CERT: z.string().default(""),
   MTR_TEST_COUNT: z.coerce.number().int().positive().default(5),
   POLL_INTERVAL_MS: z.coerce.number().int().positive().default(5000),
 });
@@ -41,6 +46,7 @@ const mtrPayloadSchema = z.object({
 });
 
 type MtrPayload = z.infer<typeof mtrPayloadSchema>;
+type Env = z.infer<typeof envSchema>;
 
 function sleep(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
@@ -64,6 +70,25 @@ async function runMtr(
   return mtrPayloadSchema.parse(parsed);
 }
 
+function buildSslOption(env: Env) {
+  switch (env.POSTGRES_SSL_MODE) {
+    case "disable":
+      return false;
+    case "require":
+      return { rejectUnauthorized: false };
+    case "verify-ca":
+    case "verify-full": {
+      if (!env.POSTGRES_SSL_ROOT_CERT) {
+        throw new Error(
+          "POSTGRES_SSL_ROOT_CERT is required when POSTGRES_SSL_MODE is verify-ca or verify-full",
+        );
+      }
+      const ca = readFileSync(env.POSTGRES_SSL_ROOT_CERT, "utf8");
+      return { rejectUnauthorized: true, ca };
+    }
+  }
+}
+
 async function main(): Promise<void> {
   const env = envSchema.parse(process.env);
 
@@ -74,7 +99,9 @@ async function main(): Promise<void> {
   url.port = env.POSTGRES_PORT;
   url.pathname = `/${env.POSTGRES_DB}`;
 
-  const connection = postgres(url.toString(), { max: 1 });
+  const sslOption = buildSslOption(env);
+
+  const connection = postgres(url.toString(), { max: 1, ssl: sslOption });
   const db = drizzle(connection);
 
   console.log(

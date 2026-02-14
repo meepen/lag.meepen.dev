@@ -15,14 +15,12 @@ module "api" {
   source = "./api"
 
   cloudflare_account_id = var.cloudflare_account_id
-  cloudflare_zone_id    = var.cloudflare_zone_id
 
   postgres_host     = var.postgres_host
   postgres_port     = var.postgres_port
   postgres_db       = var.postgres_db
   postgres_user     = var.postgres_user
   postgres_password = var.postgres_password
-  domain            = var.api_domain
   cors_origins      = "https://${var.frontend_domain}"
 }
 

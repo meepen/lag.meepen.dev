@@ -17,6 +17,7 @@ postgres-data/
 
 # Wrangler
 .wrangler
+**/wrangler.deploy.toml
 
 # Direnv
 .direnv
